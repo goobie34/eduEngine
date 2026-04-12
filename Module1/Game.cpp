@@ -4,6 +4,8 @@
 #include "imgui.h"
 #include "Log.hpp"
 #include "Game.hpp"
+#include "ECS/CoreComponents.hpp"
+#include "ECS/CoreSystems.hpp"
 
 bool Game::init()
 {
@@ -21,6 +23,11 @@ bool Game::init()
         float x, y, z;
     };
     entity_registry->emplace<Tfm>(ent1, Tfm{});
+
+    auto pointlightEntity = entity_registry->create();
+    entity_registry->emplace<PointLightComponent>(pointlightEntity,
+        player.pos + glm_aux::vec3_010 * 5.0f, //above player
+        glm::vec3(1,1,1)); //white light
 
     // Grass
     grassMesh = std::make_shared<eeng::RenderableMesh>();
@@ -79,6 +86,67 @@ bool Game::init()
         35.0f, { 0, 1, 0 },
         { 0.01f, 0.01f, 0.01f });
 
+
+    //ecs test
+    //PLAYER
+    auto playerEntity = entity_registry->create();
+    entity_registry->emplace<TransformComponent>(playerEntity,
+        player.pos,
+        glm::mat3(1.0),
+        glm::vec3{0.03f, 0.03f, 0.03f});
+    entity_registry->emplace<MeshComponent>(playerEntity, std::weak_ptr(characterMesh));
+    entity_registry->emplace<ThirdPersonCameraControllerComponent>(playerEntity, ThirdPersonCameraControllerComponent{});
+    entity_registry->emplace<LinearVelocityComponent>(playerEntity, LinearVelocityComponent{});
+    using Key = InputManager::Key;    
+    entity_registry->emplace<PlayerControllerComponent>(playerEntity,
+        Key::W,
+        Key::A,
+        Key::S,
+        Key::D,
+        Key::Space,
+        Key::LeftShift,
+        6.0f,   //move speed
+        10.0f,   //jump speed
+        2.0f);  //sprint multiplier
+
+    //CAMERA
+    auto cameraEntity = entity_registry->create();
+    entity_registry->emplace<TransformComponent>(cameraEntity,
+        camera.pos,
+        glm::mat3(1.0),
+        glm::vec3{1, 1, 1});
+    entity_registry->emplace<CameraComponent>(cameraEntity,
+        60.0f,
+        camera.nearPlane,
+        camera.farPlane,
+        glm::mat4(1.0),
+        glm::mat4(1.0),
+        glm::mat4(1.0),
+        true);
+
+    //ENVIRONMENT
+    auto grassEntity = entity_registry->create();
+    entity_registry->emplace<TransformComponent>(grassEntity,
+        glm::vec3{0.0f, 0.0f, 0.0f},
+        glm::mat3(1.0),
+        glm::vec3{100.0f, 100.0f, 100.0f});
+    entity_registry->emplace<MeshComponent>(grassEntity, std::weak_ptr(grassMesh));
+
+    //NPC
+    auto npcEntity = entity_registry->create();
+    entity_registry->emplace<TransformComponent>(npcEntity,
+        glm::vec3{30.0f, 0.0f, -35.0f},
+        glm::mat3(1.0),
+        glm::vec3{0.01f, 0.01f, 0.01f});
+    entity_registry->emplace<MeshComponent>(npcEntity, std::weak_ptr(horseMesh));
+    entity_registry->emplace<NPCControllerComponent>(npcEntity,
+        std::vector<glm::vec3>{glm::vec3{10.0f, 0.0f, -35.0f}, glm::vec3{10.0f, 0.0f, -10.0f}, glm::vec3{30.0f, 0.0f, -10.0f}, glm::vec3{30.0f, 0.0f, -35.0f}},
+        0,
+        5.0f,
+        1.0f,
+        NPCControllerComponent::WaypointOrder::Sequential,
+        0.0f);
+
     return true;
 }
 
@@ -87,6 +155,15 @@ void Game::update(
     float deltaTime,
     InputManagerPtr input)
 {
+    //test ecs
+    {
+        MovementSystem::Update(deltaTime, *entity_registry);
+        PlayerControllerSystem::Update(input, *entity_registry);
+        ThirdPersonCameraControllerSystem::Update(input, *entity_registry);
+        NPCControllerSystem::Update(deltaTime, *entity_registry);
+    }   
+    return;
+
     updateCamera(input);
 
     updatePlayer(deltaTime, input);
@@ -139,7 +216,20 @@ void Game::render(
     int windowWidth,
     int windowHeight)
 {
-    renderUI();
+    //test ecs
+    {
+        CameraSystem::Update(windowWidth, windowHeight, *entity_registry); 
+        RenderSystem::Render(forwardRenderer, *entity_registry);
+        drawcallCount = forwardRenderer->endPass();
+        renderUI();
+    }
+    return;
+    
+    
+    
+    
+    
+    
 
     matrices.windowSize = glm::ivec2(windowWidth, windowHeight);
 
