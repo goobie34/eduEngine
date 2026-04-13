@@ -49,6 +49,10 @@ private:
 
     // Entity registry - to use in labs
     std::shared_ptr<entt::registry> entity_registry;
+    entt::entity m_playerEntity;
+    entt::entity m_npcEntity;
+    entt::entity m_cameraEntity;
+    entt::entity m_lightEntity;
 
     // Matrices for view, projection and viewport
     struct Matrices

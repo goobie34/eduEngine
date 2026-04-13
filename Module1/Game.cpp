@@ -6,6 +6,8 @@
 #include "Game.hpp"
 #include "ECS/CoreComponents.hpp"
 #include "ECS/CoreSystems.hpp"
+#include "ECS/GameComponents.hpp"
+#include "ECS/GameSystems.hpp"
 
 bool Game::init()
 {
@@ -88,44 +90,30 @@ bool Game::init()
 
 
     //ecs test
+    m_playerEntity = entity_registry->create();
+    m_cameraEntity = entity_registry->create();
+    auto grassEntity = entity_registry->create();
+    m_npcEntity = entity_registry->create();
+
     //PLAYER
-    auto playerEntity = entity_registry->create();
-    entity_registry->emplace<TransformComponent>(playerEntity,
+    entity_registry->emplace<TransformComponent>(m_playerEntity,
         player.pos,
         glm::mat3(1.0),
         glm::vec3{0.03f, 0.03f, 0.03f});
-    entity_registry->emplace<MeshComponent>(playerEntity, std::weak_ptr(characterMesh));
-    entity_registry->emplace<ThirdPersonCameraControllerComponent>(playerEntity, ThirdPersonCameraControllerComponent{});
-    entity_registry->emplace<LinearVelocityComponent>(playerEntity, LinearVelocityComponent{});
+    entity_registry->emplace<MeshComponent>(m_playerEntity, std::weak_ptr(characterMesh));
+    entity_registry->emplace<ThirdPersonCameraControllerComponent>(m_playerEntity, m_cameraEntity);
+    entity_registry->emplace<LinearVelocityComponent>(m_playerEntity, LinearVelocityComponent{});
     using Key = InputManager::Key;    
-    entity_registry->emplace<PlayerControllerComponent>(playerEntity,
-        Key::W,
-        Key::A,
-        Key::S,
-        Key::D,
-        Key::Space,
-        Key::LeftShift,
-        6.0f,   //move speed
-        10.0f,   //jump speed
-        2.0f);  //sprint multiplier
+    entity_registry->emplace<PlayerControllerComponent>(m_playerEntity, Key::W, Key::A, Key::S, Key::D, Key::LeftShift);
 
     //CAMERA
-    auto cameraEntity = entity_registry->create();
-    entity_registry->emplace<TransformComponent>(cameraEntity,
+    entity_registry->emplace<TransformComponent>(m_cameraEntity,
         camera.pos,
         glm::mat3(1.0),
         glm::vec3{1, 1, 1});
-    entity_registry->emplace<CameraComponent>(cameraEntity,
-        60.0f,
-        camera.nearPlane,
-        camera.farPlane,
-        glm::mat4(1.0),
-        glm::mat4(1.0),
-        glm::mat4(1.0),
-        true);
+    entity_registry->emplace<CameraComponent>(m_cameraEntity, 60.0f, camera.nearPlane, camera.farPlane, true, m_playerEntity);
 
     //ENVIRONMENT
-    auto grassEntity = entity_registry->create();
     entity_registry->emplace<TransformComponent>(grassEntity,
         glm::vec3{0.0f, 0.0f, 0.0f},
         glm::mat3(1.0),
@@ -133,19 +121,12 @@ bool Game::init()
     entity_registry->emplace<MeshComponent>(grassEntity, std::weak_ptr(grassMesh));
 
     //NPC
-    auto npcEntity = entity_registry->create();
-    entity_registry->emplace<TransformComponent>(npcEntity,
+    entity_registry->emplace<TransformComponent>(m_npcEntity,
         glm::vec3{30.0f, 0.0f, -35.0f},
         glm::mat3(1.0),
         glm::vec3{0.01f, 0.01f, 0.01f});
-    entity_registry->emplace<MeshComponent>(npcEntity, std::weak_ptr(horseMesh));
-    entity_registry->emplace<NPCControllerComponent>(npcEntity,
-        std::vector<glm::vec3>{glm::vec3{10.0f, 0.0f, -35.0f}, glm::vec3{10.0f, 0.0f, -10.0f}, glm::vec3{30.0f, 0.0f, -10.0f}, glm::vec3{30.0f, 0.0f, -35.0f}},
-        0,
-        5.0f,
-        1.0f,
-        NPCControllerComponent::WaypointOrder::Sequential,
-        0.0f);
+    entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(horseMesh));
+    entity_registry->emplace<NPCControllerComponent>(m_npcEntity, std::vector<glm::vec3>{glm::vec3{10.0f, 0.0f, -35.0f}, glm::vec3{10.0f, 0.0f, -10.0f}, glm::vec3{30.0f, 0.0f, -10.0f}, glm::vec3{30.0f, 0.0f, -35.0f}});
 
     return true;
 }
@@ -331,6 +312,20 @@ void Game::renderUI()
     ImGui::Begin("Game Info");
 
     ImGui::Text("Drawcall count %i", drawcallCount);
+
+    auto& playerTransform = *entity_registry->try_get<TransformComponent>(m_playerEntity);
+    ImGui::SliderFloat("Player Scale X", &playerTransform.scale.x, 0.0f, 1.0f);
+    ImGui::SliderFloat("Player Scale Y", &playerTransform.scale.y, 0.0f, 1.0f);
+    ImGui::SliderFloat("Player Scale Z", &playerTransform.scale.z, 0.0f, 1.0f);
+    
+    auto& cameraController = *entity_registry->try_get<ThirdPersonCameraControllerComponent>(m_playerEntity);
+    ImGui::SliderFloat("Camera Distance", &cameraController.distance, 0.0f, 500.0f);
+
+    ImGui::End(); // end info window
+
+    return;
+
+
 
     // Color picker for light color
     if (ImGui::ColorEdit3("Light color",
