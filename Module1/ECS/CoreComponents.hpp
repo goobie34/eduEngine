@@ -32,7 +32,7 @@ struct CameraComponent{
 
     float fov, nearPlane, farPlane;
     bool isMain;
-    entt::entity lookAtEntity; //this should just be a vector3
+    entt::entity lookAtEntity; //this should eventually just be a vector3
 
     //matrices, initialized to identity
     //these are set in the camera system

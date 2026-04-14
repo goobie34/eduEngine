@@ -97,7 +97,7 @@ public:
             
             const glm::vec3 waypoint = npc_controller.waypoints[waypoint_index];
             const glm::vec3 difference = waypoint - transform.position;
-            if (glm::length(difference) > 0.1f) {
+            if (glm::length(difference) > 0.4f) {
                 const glm::vec3 direction = glm::normalize(difference);
                 transform.position += direction * npc_controller.velocity * dt;
                 
