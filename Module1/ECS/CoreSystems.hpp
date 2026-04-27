@@ -21,8 +21,6 @@ public:
     }
 };
 
-
-
 class RenderSystem {
 public:
     static void Render(eeng::ForwardRendererPtr forwardRenderer, entt::registry& registry)
@@ -90,16 +88,17 @@ public:
             camera.projectionMatrix = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.nearPlane, camera.farPlane);
             camera.viewportMatrix = glm_aux::create_viewport_matrix(0.0f, 0.0f, windowWidth, windowHeight, 0.0f, 1.0f);
                         
-            if (camera.lookAtEntity == entt::null)
-            {
-                camera.viewMatrix = glm::mat4(glm::transpose(transform.rotation)) * glm_aux::T(1.0f * (transform.position));
+            if (camera.lookAtEntity == entt::null) {
+                camera.viewMatrix = glm::mat4(glm::transpose(transform.rotation))
+                * glm_aux::T(-1.0f * (transform.position));
             }
             else if (auto lookAtTransform = registry.try_get<TransformComponent>(camera.lookAtEntity))
             {
-                camera.viewMatrix = glm::lookAt(transform.position, lookAtTransform->position, glm::vec3{0.0f,1.0f,0.0f});
-            } else
+                camera.viewMatrix = glm::lookAt(transform.position, lookAtTransform-> , glm::vec3{0.0f,1.0f,0.0f});
+            }
+            else
             {
-                //throw error
+                //TODO: throw error
             }
         }
     }

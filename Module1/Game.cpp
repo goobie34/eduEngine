@@ -1,4 +1,3 @@
-
 #include <entt/entt.hpp>
 #include "glmcommon.hpp"
 #include "imgui.h"
@@ -29,20 +28,21 @@ bool Game::init()
     characterMesh->load("assets/Amy/walking.fbx", true);
     characterMesh->load("assets/Amy/waving.fbx", true);
     characterMesh->removeTranslationKeys("mixamorig:Hips");
+    
     //Set up EnTT
     entity_registry = std::make_shared<entt::registry>();
 
     //Create entities
     m_playerEntity = entity_registry->create();
     m_cameraEntity = entity_registry->create();
-    auto grassEntity = entity_registry->create();
+    m_grassEntity = entity_registry->create();
     m_npcEntity = entity_registry->create();
     m_lightEntity = entity_registry->create();
 
     //Assign components to entities
     //PLAYER
     entity_registry->emplace<TransformComponent>(m_playerEntity,
-        player.pos,
+        glm_aux::vec3_000,
         glm::mat3(1.0),
         glm::vec3{0.03f, 0.03f, 0.03f});
     entity_registry->emplace<MeshComponent>(m_playerEntity, std::weak_ptr(characterMesh));
@@ -54,18 +54,22 @@ bool Game::init()
 
     //CAMERA
     entity_registry->emplace<TransformComponent>(m_cameraEntity,
-        camera.pos,
+        glm_aux::vec3_000,
         glm::mat3(1.0),
         glm::vec3{1, 1, 1});
     entity_registry->emplace<CameraComponent>(m_cameraEntity,
-        60.0f, camera.nearPlane, camera.farPlane, true, m_playerEntity);
+        60.0f,  //fov
+        1.0f,   //near
+        500.0f, //far
+        true,   //isMain
+        m_playerEntity);    // lookAt entity
 
     //ENVIRONMENT
-    entity_registry->emplace<TransformComponent>(grassEntity,
+    entity_registry->emplace<TransformComponent>(m_grassEntity,
         glm::vec3{0.0f, 0.0f, 0.0f},
         glm::mat3(1.0),
         glm::vec3{100.0f, 100.0f, 100.0f});
-    entity_registry->emplace<MeshComponent>(grassEntity, std::weak_ptr(grassMesh));
+    entity_registry->emplace<MeshComponent>(m_grassEntity, std::weak_ptr(grassMesh));
 
     //NPC
     entity_registry->emplace<TransformComponent>(m_npcEntity,
@@ -85,6 +89,22 @@ bool Game::init()
         glm::vec3{0.0f, 5.0f, 0.0f},    //pos
         glm::vec3{1.0f, 1.0f, 1.0f});   //color
 
+    // //DEBUG NPC
+    for(int i = 0; i < 999; i++) {
+        entt::entity debugNpc = entity_registry->create();
+        entity_registry->emplace<TransformComponent>(debugNpc,
+            glm::vec3{30.0f + i, 0.0f, -35.0f + i},
+            glm::mat3(1.0),
+            glm::vec3{0.01f, 0.01f, 0.01f});
+        entity_registry->emplace<MeshComponent>(debugNpc, std::weak_ptr(horseMesh));
+        entity_registry->emplace<NPCControllerComponent>(debugNpc,
+            std::vector<glm::vec3>{ //NPC waypoints
+            glm::vec3{10.0f + i, 0.0f, -35.0f + i},
+            glm::vec3{10.0f + i, 0.0f, -10.0f + i}, 
+            glm::vec3{30.0f + i, 0.0f, -10.0f + i}, 
+            glm::vec3{30.0f + i, 0.0f, -35.0f + i}});   
+    }
+    
     return true;
 }
 
