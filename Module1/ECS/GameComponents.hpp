@@ -29,11 +29,11 @@ struct NPCControllerComponent{
 //TODO: change it to sit on the camera entity, holding an entt:entity reference to the player, instead of the camera
 struct ThirdPersonCameraControllerComponent{
     ThirdPersonCameraControllerComponent(
-        entt::entity camera, float distance = 15.0f, float sensitivity = 0.005f)
-        : camera(camera), distance(distance), sensitivity(sensitivity) {}
+        entt::entity lookAt, float distance = 15.0f, float sensitivity = 0.005f)
+        : lookAt(lookAt), distance(distance), sensitivity(sensitivity) {}
 
     //set in constructor
-    entt::entity camera;
+    entt::entity lookAt;
     float distance;
     float sensitivity;
 

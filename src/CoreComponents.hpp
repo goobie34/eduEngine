@@ -1,5 +1,6 @@
 #include "glmcommon.hpp"
 #include "RenderableMesh.hpp"
+#include <entt/entt.hpp>
 
 #pragma once
 
@@ -26,13 +27,13 @@ struct PointLightComponent{
 
 struct CameraComponent{
     CameraComponent(float fov, float nearPlane, float farPlane,
-                    bool isMain, entt::entity lookAt = entt::null)
+                    bool isMain, bool isPivot = false)
                     : fov(fov), nearPlane(nearPlane), farPlane(farPlane),
-                    isMain(isMain), lookAtEntity(lookAt) {}
+                    isMain(isMain), isPivot(isPivot) {}
 
     float fov, nearPlane, farPlane;
-    bool isMain;
-    entt::entity lookAtEntity; //this should eventually just be a vector3
+    bool isMain, isPivot;
+    glm::vec3 lookAt_pos; //this should eventually just be a vector3
 
     //matrices, initialized to identity
     //these are set in the camera system

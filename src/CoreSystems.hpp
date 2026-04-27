@@ -3,10 +3,12 @@
 #include "CoreComponents.hpp"
 #include <entt/entt.hpp>
 #include <ForwardRenderer.hpp>
+#include <ShapeRenderer.hpp>
 
 #pragma once
 
 using namespace eeng;
+using namespace ShapeRendering;
 
 class MovementSystem {
 public:    
@@ -55,7 +57,7 @@ public:
         auto camView = registry.view<CameraComponent, TransformComponent>();
         
         //search for main camera, give warning if more than one found
-        entt::entity mainCamera;
+        entt::entity mainCamera = entt::null;
         bool mainCamFound = false;
         for(auto entity : camView) {
             if (auto camera = registry.try_get<CameraComponent>(entity)) {
@@ -70,6 +72,52 @@ public:
             }
         }
         return mainCamera;
+    }
+};
+
+class GizmoSystem {
+public:
+    static void Render(ShapeRendererPtr shapeRenderer, entt::registry& registry) {
+        float axisLen = 10.0f;
+
+        auto meshView = registry.view<TransformComponent, MeshComponent>();
+        for(auto entity : meshView)
+        {
+            const std::weak_ptr mesh = meshView.get<MeshComponent>(entity).mesh;
+            const TransformComponent& transform = meshView.get<TransformComponent>(entity);
+
+            if(auto mesh_ptr = mesh.lock()) //gets shared_ptr from weak_ptr, which is then released when scope ends
+            {
+                glm::mat4 transformationMatrix = glm_aux::T(transform.position) * glm::mat4(transform.rotation) * glm_aux::S(transform.scale);
+                for (int i = 0; i < mesh_ptr->boneMatrices.size(); ++i) {
+                    auto IBinverse = glm::inverse(mesh_ptr->m_bones[i].inversebind_tfm);
+                    glm::mat4 global = transformationMatrix * mesh_ptr->boneMatrices[i] * IBinverse;
+                    glm::vec3 pos = glm::vec3(global[3]);
+                    
+                    glm::vec3 right = glm::vec3(global[0]); // X
+                    glm::vec3 up    = glm::vec3(global[1]); // Y
+                    glm::vec3 fwd   = glm::vec3(global[2]); // Z
+
+                    shapeRenderer->push_states(ShapeRendering::Color4u::Red);
+                    shapeRenderer->push_line(pos, pos + axisLen * right);
+
+                    shapeRenderer->push_states(ShapeRendering::Color4u::Green);
+                    shapeRenderer->push_line(pos, pos + axisLen * up);
+
+                    shapeRenderer->push_states(ShapeRendering::Color4u::Blue);
+                    shapeRenderer->push_line(pos, pos + axisLen * fwd);
+
+                    shapeRenderer->pop_states<ShapeRendering::Color4u>();
+                    shapeRenderer->pop_states<ShapeRendering::Color4u>();
+                    shapeRenderer->pop_states<ShapeRendering::Color4u>();
+                }
+            }
+        }
+        entt::entity cam_entity = RenderSystem::getMainCam(registry);
+        assert(cam_entity != entt::null && "GizmoSystem: Cannot find main camera.");
+        CameraComponent camera = registry.get<CameraComponent>(cam_entity);
+        shapeRenderer->render(camera.projectionMatrix * camera.viewMatrix);
+        shapeRenderer->post_render();
     }
 };
 
@@ -88,17 +136,14 @@ public:
             camera.projectionMatrix = glm::perspective(glm::radians(camera.fov), aspectRatio, camera.nearPlane, camera.farPlane);
             camera.viewportMatrix = glm_aux::create_viewport_matrix(0.0f, 0.0f, windowWidth, windowHeight, 0.0f, 1.0f);
                         
-            if (camera.lookAtEntity == entt::null) {
-                camera.viewMatrix = glm::mat4(glm::transpose(transform.rotation))
-                * glm_aux::T(-1.0f * (transform.position));
-            }
-            else if (auto lookAtTransform = registry.try_get<TransformComponent>(camera.lookAtEntity))
-            {
-                camera.viewMatrix = glm::lookAt(transform.position, lookAtTransform->position, glm::vec3{0.0f,1.0f,0.0f});
+            if (camera.isPivot) {
+                camera.viewMatrix = glm::lookAt(transform.position, camera.lookAt_pos, glm::vec3{0.0f,1.0f,0.0f});
             }
             else
             {
-                //TODO: throw error
+                camera.viewMatrix = glm::mat4(glm::transpose(transform.rotation))
+                * glm_aux::T(-1.0f * (transform.position));
+
             }
         }
     }

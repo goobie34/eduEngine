@@ -46,7 +46,6 @@ bool Game::init()
         glm::mat3(1.0),
         glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_playerEntity, std::weak_ptr(characterMesh));
-    m_entity_registry->emplace<ThirdPersonCameraControllerComponent>(m_playerEntity, m_cameraEntity);
     m_entity_registry->emplace<LinearVelocityComponent>(m_playerEntity, LinearVelocityComponent{});
     using Key = InputManager::Key;
     m_entity_registry->emplace<PlayerControllerComponent>(
@@ -58,11 +57,13 @@ bool Game::init()
         glm::mat3(1.0),
         glm::vec3{1, 1, 1});
     m_entity_registry->emplace<CameraComponent>(m_cameraEntity,
-        60.0f,  //fov
-        1.0f,   //near
-        500.0f, //far
-        true,   //isMain
-        m_playerEntity);    // lookAt entity
+        60.0f,  // fov
+        1.0f,   // near
+        500.0f, // far
+        true,   // isMain
+        true);  // isPivot
+    m_entity_registry->emplace<ThirdPersonCameraControllerComponent>(m_cameraEntity,
+        m_playerEntity); //lookAt entity
 
     //ENVIRONMENT
     m_entity_registry->emplace<TransformComponent>(m_grassEntity,
@@ -130,6 +131,7 @@ void Game::render(
     //core
     CameraSystem::Update(windowWidth, windowHeight, *m_entity_registry);
     RenderSystem::Render(forwardRenderer, *m_entity_registry);
+    if (m_renderGizmos) GizmoSystem::Render(shapeRenderer, *m_entity_registry);
     
     //game
     drawcallCount = forwardRenderer->endPass();
@@ -148,7 +150,7 @@ void Game::renderUI()
         ImGui::SliderFloat("Player Scale X", &playerTransform.scale.x, 0.0f, 1.0f);
         ImGui::SliderFloat("Player Scale Y", &playerTransform.scale.y, 0.0f, 1.0f);
         ImGui::SliderFloat("Player Scale Z", &playerTransform.scale.z, 0.0f, 1.0f);
-        auto& cameraController = *m_entity_registry->try_get<ThirdPersonCameraControllerComponent>(m_playerEntity);
+        auto& cameraController = *m_entity_registry->try_get<ThirdPersonCameraControllerComponent>(m_cameraEntity);
         ImGui::SliderFloat("Camera Distance", &cameraController.distance, 0.0f, 500.0f);
     }
     //NPC
@@ -176,6 +178,7 @@ void Game::renderUI()
             ImGui::Text("No Light Found.");
         }
     }
+    ImGui::Checkbox("Render Gizmos", &m_renderGizmos);
 
     ImGui::End(); // end info window
 }

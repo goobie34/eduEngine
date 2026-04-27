@@ -46,6 +46,7 @@ private:
 
     // Immediate-mode renderer for basic 2D or 3D primitives
     ShapeRendererPtr shapeRenderer;
+    bool m_renderGizmos = false;
 
     // Entity registry - to use in labs
     // std::shared_ptr<entt::registry> entity_registry;

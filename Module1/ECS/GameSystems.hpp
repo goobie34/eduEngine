@@ -3,6 +3,7 @@
 #include "CoreComponents.hpp"
 #include "GameComponents.hpp"
 #include <entt/entt.hpp>
+#include <cassert>
 
 #pragma once
 
@@ -12,13 +13,11 @@ public:
     {
         auto view = registry.view<PlayerControllerComponent,
             LinearVelocityComponent, 
-            ThirdPersonCameraControllerComponent,
             TransformComponent>();
         
         for(auto entity : view)
         {
             auto& player_controller = view.get<PlayerControllerComponent>(entity);
-            auto& cam_controller = view.get<ThirdPersonCameraControllerComponent>(entity); 
             auto& velocity = view.get<LinearVelocityComponent>(entity).velocity; 
             auto& transform = view.get<TransformComponent>(entity); 
 
@@ -28,6 +27,16 @@ public:
             bool right      = input->IsKeyPressed(player_controller.right_keybind);
             bool sprint     = input->IsKeyPressed(player_controller.sprint_keybind);
             float scale = sprint ? player_controller.sprint_scale : 1.0f;
+
+            //get third person camera controller, needed to set fwd_dir for player
+            auto cam_controller_view = registry.view<ThirdPersonCameraControllerComponent>();
+            if (cam_controller_view.empty()) {
+                assert(false && "PlayerControllerComponent: There is no ThirdPersonCameraControllerComponent in entity registry.");
+                return;
+            }
+
+            entt::entity cam_controller_entity = cam_controller_view.front();
+            auto& cam_controller = registry.get<ThirdPersonCameraControllerComponent>(cam_controller_entity); 
 
             // Compute vectors in the local space of the player
             glm::vec3 fwd_dir = glm::vec3(glm_aux::R(cam_controller.yaw, glm_aux::vec3_010) * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
@@ -51,18 +60,19 @@ class ThirdPersonCameraControllerSystem {
 public:
     static void Update(InputManagerPtr input, entt::registry& registry)
     {        
-        auto view = registry.view<TransformComponent, ThirdPersonCameraControllerComponent>();
+        auto view = registry.view<TransformComponent, CameraComponent, ThirdPersonCameraControllerComponent>();
 
         for(auto entity : view) {
             ThirdPersonCameraControllerComponent& controller = view.get<ThirdPersonCameraControllerComponent>(entity);
             TransformComponent& transform = view.get<TransformComponent>(entity);
-            auto camView = registry.view<CameraComponent, TransformComponent>();
+            CameraComponent& camera = view.get<CameraComponent>(entity);
 
-            if (controller.camera == entt::null) continue;
-            if (!camView.contains(controller.camera)) continue; //throw error
+            auto entityView = registry.view<TransformComponent>();
 
-            glm::vec3& cam_pos = camView.get<TransformComponent>(controller.camera).position;
-            CameraComponent& camera = camView.get<CameraComponent>(controller.camera);
+            if (controller.lookAt == entt::null) continue;
+            if (!entityView.contains(controller.lookAt)) continue; //throw error
+
+            glm::vec3& lookAt_pos = entityView.get<TransformComponent>(controller.lookAt).position;
 
             // Fetch mouse and compute movement since last frame
             auto mouse = input->GetMouseState();
@@ -79,7 +89,8 @@ public:
 
             // Update camera position
             const glm::vec4 rotatedPos = glm_aux::R(controller.yaw, controller.pitch) * glm::vec4(0.0f, 0.0f, controller.distance, 1.0f);
-            cam_pos = transform.position + glm::vec3(rotatedPos);
+            transform.position = lookAt_pos + glm::vec3(rotatedPos);
+            camera.lookAt_pos = lookAt_pos; //and tell it where to look
         }
     }
 };
