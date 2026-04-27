@@ -48,7 +48,7 @@ private:
     ShapeRendererPtr shapeRenderer;
 
     // Entity registry - to use in labs
-    std::shared_ptr<entt::registry> entity_registry;
+    // std::shared_ptr<entt::registry> entity_registry;
     entt::entity m_playerEntity;
     entt::entity m_npcEntity;
     entt::entity m_grassEntity;

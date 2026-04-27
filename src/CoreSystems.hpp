@@ -94,7 +94,7 @@ public:
             }
             else if (auto lookAtTransform = registry.try_get<TransformComponent>(camera.lookAtEntity))
             {
-                camera.viewMatrix = glm::lookAt(transform.position, lookAtTransform-> , glm::vec3{0.0f,1.0f,0.0f});
+                camera.viewMatrix = glm::lookAt(transform.position, lookAtTransform->position, glm::vec3{0.0f,1.0f,0.0f});
             }
             else
             {

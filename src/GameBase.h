@@ -6,6 +6,8 @@
 #pragma once
 
 #include "InputManager.hpp"
+#include "CoreComponents.hpp"
+#include "CoreSystems.hpp"
 
 namespace eeng {
 
@@ -18,6 +20,9 @@ namespace eeng {
  */
 class GameBase
 {
+protected:
+    std::shared_ptr<entt::registry> m_entity_registry; //entity registry for ECS
+
 public:
     /**
      * @brief Initialize the game.
