@@ -1,6 +1,7 @@
 #include "glmcommon.hpp"
 #include "RenderableMesh.hpp"
 #include <entt/entt.hpp>
+#include <string>
 
 #pragma once
 
@@ -8,8 +9,14 @@ using namespace eeng;
 
 struct TransformComponent {
     glm::vec3 position;
-    glm::mat3 rotation;
+    float pitch;
+    float yaw;
+    // glm::mat3 rotation;
     glm::vec3 scale;
+
+    glm::mat4 RotationMatrix() const {
+        return glm_aux::R(yaw, pitch);
+    }
 };
 
 struct LinearVelocityComponent {
@@ -40,4 +47,13 @@ struct CameraComponent{
     glm::mat4 projectionMatrix = glm::mat4(1.0);
     glm::mat4 viewMatrix = glm::mat4(1.0);
     glm::mat4 viewportMatrix = glm::mat4(1.0);
+};
+
+struct AnimationComponent {
+    int animIndexA, animIndexB;
+    float speed;
+    float blendFactor;
+    bool useLayering;
+    float time;
+    std::string subTreeRootNode;
 };

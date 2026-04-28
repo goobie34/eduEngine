@@ -9,7 +9,7 @@
 
 class PlayerControllerSystem {
 public:    
-    static void Update(InputManagerPtr input, entt::registry& registry)
+    static void Update(float dt, InputManagerPtr input, entt::registry& registry)
     {
         auto view = registry.view<PlayerControllerComponent,
             LinearVelocityComponent, 
@@ -42,17 +42,65 @@ public:
             glm::vec3 fwd_dir = glm::vec3(glm_aux::R(cam_controller.yaw, glm_aux::vec3_010) * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
             glm::vec3 right_dir = glm::cross(fwd_dir, glm_aux::vec3_010);
 
-            velocity =
-                fwd_dir   * player_controller.velocity * scale * ((forward ? 1.0f : 0.0f) + (backward ? -1.0f : 0.0f)) +
-                right_dir * player_controller.velocity * scale * ((left ? -1.0f : 0.0f)   + (right ? 1.0f : 0.0f));
+            glm::vec3 dir_sum = fwd_dir   * ((forward ? 1.0f : 0.0f) + (backward ? -1.0f : 0.0f)) +
+                                right_dir * ((left ? -1.0f : 0.0f)   + (right ? 1.0f : 0.0f));
+            
+            if (glm::length(dir_sum) > 0.0001f)
+            {
+                float acceleration_rate = 4.0f;
+                glm::vec3 move_dir = glm::normalize(dir_sum);
+                glm::vec3 target_velocity =  move_dir * player_controller.move_speed * scale;
+                velocity = glm::mix(velocity, target_velocity, acceleration_rate * dt);
+            } else
+            {
+                velocity *= 0.9f;
+            }
 
             //makes player face in movement direction
             if (glm::length(velocity) > 0.001f) {
                 //set rotation around y axis (yaw) from velocity vector
+                float rotationSpeed = 8.0f;
+                float currentYaw = transform.yaw;
                 float targetYaw = std::atan2(velocity.x, velocity.z);
-                transform.rotation = glm_aux::R(targetYaw, glm_aux::vec3_010);
+                
+                // float currentYawDeg = glm::degrees(currentYaw);
+                // float targetYawDeg = glm::degrees(targetYaw);
+                // if (glm::abs(targetYawDeg - currentYawDeg) > 180) {
+                //     targetYawDeg = 360 - targetYaw;
+                // }
+                // targetYaw = glm::radians(targetYawDeg);
+
+                // transform.yaw = glm::mix(currentYaw, targetYaw, rotationSpeed * dt);    
+                transform.yaw = targetYaw;    
             }
         }
+    }
+};
+
+class PlayerAnimationSystem {
+public:
+    static void Update(entt::registry& registry) {
+        auto view = registry.view<LinearVelocityComponent, AnimationComponent, PlayerAnimationControllerComponent>();
+        for(auto entity : view) {
+            auto& velocity = view.get<LinearVelocityComponent>(entity).velocity;
+            auto& animationComponent = view.get<AnimationComponent>(entity);
+            auto& animationController = view.get<PlayerAnimationControllerComponent>(entity);
+            float velocityMag = glm::length(velocity);
+            if(velocityMag <= animationController.thresholdWalk) {
+                animationComponent.animIndexA = animationController.animIndexIdle;
+                animationComponent.animIndexB = animationController.animIndexWalk;
+                animationComponent.blendFactor = glm::clamp(velocityMag / animationController.thresholdWalk, 0.0f, 1.0f);
+
+            } else if(velocityMag <= animationController.thresholdRun) {
+                animationComponent.animIndexA = animationController.animIndexWalk;
+                animationComponent.animIndexB = animationController.animIndexRun;
+                animationComponent.blendFactor = 
+                    glm::clamp((velocityMag - animationController.thresholdWalk)
+                               / (animationController.thresholdRun - animationController.thresholdWalk)
+                               , 0.0f, 1.0f);
+            }
+        }
+
     }
 };
 
@@ -114,7 +162,7 @@ public:
                 
                 float targetYaw = std::atan2(direction.x, direction.z); //get rotation around y axis (yaw) from velocity
                 
-                transform.rotation = glm_aux::R(targetYaw, glm_aux::vec3_010);
+                transform.yaw = targetYaw;
             } else {
                 float& curr_wait = npc_controller.currentWait;
                 const float max_wait = npc_controller.waitSeconds;

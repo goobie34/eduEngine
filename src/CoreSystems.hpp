@@ -47,7 +47,7 @@ public:
 
             if(auto mesh_ptr = mesh.lock()) //gets shared_ptr from weak_ptr, which is then released when scope ends
             {
-                forwardRenderer->renderMesh(mesh_ptr, glm_aux::T(transform.position) * glm::mat4(transform.rotation) * glm_aux::S(transform.scale));
+                forwardRenderer->renderMesh(mesh_ptr, glm_aux::T(transform.position) * transform.RotationMatrix() * glm_aux::S(transform.scale));
             }
         }
         
@@ -88,7 +88,7 @@ public:
 
             if(auto mesh_ptr = mesh.lock()) //gets shared_ptr from weak_ptr, which is then released when scope ends
             {
-                glm::mat4 transformationMatrix = glm_aux::T(transform.position) * glm::mat4(transform.rotation) * glm_aux::S(transform.scale);
+                glm::mat4 transformationMatrix = glm_aux::T(transform.position) * transform.RotationMatrix() * glm_aux::S(transform.scale);
                 for (int i = 0; i < mesh_ptr->boneMatrices.size(); ++i) {
                     auto IBinverse = glm::inverse(mesh_ptr->m_bones[i].inversebind_tfm);
                     glm::mat4 global = transformationMatrix * mesh_ptr->boneMatrices[i] * IBinverse;
@@ -141,7 +141,7 @@ public:
             }
             else
             {
-                camera.viewMatrix = glm::mat4(glm::transpose(transform.rotation))
+                camera.viewMatrix = glm::transpose(transform.RotationMatrix())
                 * glm_aux::T(-1.0f * (transform.position));
 
             }
@@ -149,3 +149,35 @@ public:
     }
 };
 
+class AnimationSystem {
+public:
+    static void Update(float dt, entt::registry& registry) {
+        auto view = registry.view<AnimationComponent, MeshComponent>();
+
+        for(auto entity : view)
+        {
+            auto& animationComponent = view.get<AnimationComponent>(entity);
+            std::weak_ptr<RenderableMesh> mesh = view.get<MeshComponent>(entity).mesh;
+            animationComponent.time += dt;
+
+            if(auto mesh_ptr = mesh.lock()) //gets shared_ptr from weak_ptr, which is then released when scope ends
+            {
+                if (animationComponent.useLayering)
+                {
+                    eeng::AnimationBranchDesc upperBodyFilter;
+                    upperBodyFilter.root_node_name = animationComponent.subTreeRootNode;
+                    upperBodyFilter.mode = eeng::AnimationBranchDesc::Mode::IncludeSubtree;
+                    mesh_ptr->animateBlend(animationComponent.animIndexA, animationComponent.animIndexB,
+                                           animationComponent.time, animationComponent.time,
+                                           upperBodyFilter);
+                }
+                else
+                {
+                    mesh_ptr->animateBlend(animationComponent.animIndexA, animationComponent.animIndexB,
+                                           animationComponent.time, animationComponent.time,
+                                           animationComponent.blendFactor);
+                }
+            }
+        }
+    }    
+};
