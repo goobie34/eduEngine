@@ -47,31 +47,18 @@ public:
             
             if (glm::length(dir_sum) > 0.0001f)
             {
-                float acceleration_rate = 4.0f;
                 glm::vec3 move_dir = glm::normalize(dir_sum);
                 glm::vec3 target_velocity =  move_dir * player_controller.move_speed * scale;
-                velocity = glm::mix(velocity, target_velocity, acceleration_rate * dt);
+                velocity = glm::mix(velocity, target_velocity, player_controller.acceleration_rate * dt);
             } else
             {
-                velocity *= 0.9f;
+                velocity *= glm::min(player_controller.friction * dt, 1.0f);
             }
 
             //makes player face in movement direction
             if (glm::length(velocity) > 0.001f) {
-                //set rotation around y axis (yaw) from velocity vector
-                float rotationSpeed = 8.0f;
-                float currentYaw = transform.yaw;
-                float targetYaw = std::atan2(velocity.x, velocity.z);
-                
-                // float currentYawDeg = glm::degrees(currentYaw);
-                // float targetYawDeg = glm::degrees(targetYaw);
-                // if (glm::abs(targetYawDeg - currentYawDeg) > 180) {
-                //     targetYawDeg = 360 - targetYaw;
-                // }
-                // targetYaw = glm::radians(targetYawDeg);
-
-                // transform.yaw = glm::mix(currentYaw, targetYaw, rotationSpeed * dt);    
-                transform.yaw = targetYaw;    
+                //set rotation around y axis (yaw) from velocity vector                
+                transform.yaw = std::atan2(velocity.x, velocity.z);    
             }
         }
     }

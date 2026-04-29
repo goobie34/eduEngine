@@ -20,7 +20,12 @@ bool Game::init()
     grassMesh->load("assets/grass/grass_trees_merged.fbx", false);
 
     horseMesh = std::make_shared<eeng::RenderableMesh>();
-    horseMesh->load("assets/Animals/Horse.fbx", false);
+    // horseMesh->load("assets/Animals/Horse.fbx", false);
+    horseMesh->load("assets/Chad/Chad.fbx");
+    horseMesh->load("assets/Chad/Idle.fbx", true);
+    horseMesh->load("assets/Chad/Walking.fbx", true);
+    horseMesh->load("assets/Chad/Running.fbx", true);
+    horseMesh->load("assets/Chad/Dancing.fbx", true);
 
     characterMesh = std::make_shared<eeng::RenderableMesh>();
     // characterMesh->load("assets/Amy/Ch46_nonPBR.fbx");      //anim index 0
@@ -41,6 +46,7 @@ bool Game::init()
     characterMesh->load("assets/Chad/Idle.fbx", true);
     characterMesh->load("assets/Chad/Walking.fbx", true);
     characterMesh->load("assets/Chad/Running.fbx", true);
+    characterMesh->load("assets/Chad/Dancing.fbx", true);
     // Remove root motion
     characterMesh->removeTranslationKeys("mixamorig:Hips");
 
@@ -51,6 +57,7 @@ bool Game::init()
     m_playerEntity = m_entity_registry->create();
     m_cameraEntity = m_entity_registry->create();
     m_grassEntity = m_entity_registry->create();
+    m_npcEntity = m_entity_registry->create();
     m_npcEntity = m_entity_registry->create();
     m_lightEntity = m_entity_registry->create();
 
@@ -89,45 +96,32 @@ bool Game::init()
     //ENVIRONMENT
     m_entity_registry->emplace<TransformComponent>(m_grassEntity,
         glm::vec3{0.0f, 0.0f, 0.0f},
-        0.0f,
-        0.0f,
+        0.0f,   //pitch
+        0.0f,   //yaw
         glm::vec3{100.0f, 100.0f, 100.0f});
     m_entity_registry->emplace<MeshComponent>(m_grassEntity, std::weak_ptr(grassMesh));
 
     //NPC
     m_entity_registry->emplace<TransformComponent>(m_npcEntity,
-        glm::vec3{30.0f, 0.0f, -35.0f},
+        glm::vec3{5.0f, 0.0f, -5.0f},
         0.0f,
         0.0f,
-        glm::vec3{0.01f, 0.01f, 0.01f});
+        // glm::vec3{0.01f, 0.01f, 0.01f});
+        glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(horseMesh));
-    // m_entity_registry->emplace<NPCControllerComponent>(m_npcEntity,
-    //     std::vector<glm::vec3>{ //NPC waypoints
-    //     glm::vec3{10.0f, 0.0f, -35.0f},
-    //     glm::vec3{10.0f, 0.0f, -10.0f}, 
-    //     glm::vec3{30.0f, 0.0f, -10.0f}, 
-    //     glm::vec3{30.0f, 0.0f, -35.0f}});
+    m_entity_registry->emplace<NPCControllerComponent>(m_npcEntity,
+        std::vector<glm::vec3>{ //NPC waypoints
+        glm::vec3{5.0f,  0.0f,  0.0f},
+        glm::vec3{10.0f, 0.0f, -10.0f}, 
+        glm::vec3{30.0f, 0.0f, -10.0f}, 
+        glm::vec3{30.0f, 0.0f, -35.0f}});
+    m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
+        2, 4, 1.0f, 1.0f, true, 0.0f, std::string("mixamorig:Spine"));
 
     //POINT LIGHT
     m_entity_registry->emplace<PointLightComponent>(m_lightEntity,
         glm::vec3{0.0f, 5.0f, 0.0f},    //pos
         glm::vec3{1.0f, 1.0f, 1.0f});   //color
-
-    // // //DEBUG NPC
-    // for(int i = 0; i < 999; i++) {
-    //     entt::entity debugNpc = m_entity_registry->create();
-    //     m_entity_registry->emplace<TransformComponent>(debugNpc,
-    //         glm::vec3{30.0f + i, 0.0f, -35.0f + i},
-    //         glm::mat3(1.0),
-    //         glm::vec3{0.01f, 0.01f, 0.01f});
-    //     m_entity_registry->emplace<MeshComponent>(debugNpc, std::weak_ptr(horseMesh));
-    //     m_entity_registry->emplace<NPCControllerComponent>(debugNpc,
-    //         std::vector<glm::vec3>{ //NPC waypoints
-    //         glm::vec3{10.0f + i, 0.0f, -35.0f + i},
-    //         glm::vec3{10.0f + i, 0.0f, -10.0f + i}, 
-    //         glm::vec3{30.0f + i, 0.0f, -10.0f + i}, 
-    //         glm::vec3{30.0f + i, 0.0f, -35.0f + i}});   
-    // }
     
     return true;
 }
@@ -146,7 +140,6 @@ void Game::update(
     PlayerAnimationSystem::Update(*m_entity_registry);
     ThirdPersonCameraControllerSystem::Update(input, *m_entity_registry);
     NPCControllerSystem::Update(deltaTime, *m_entity_registry);
-    
 }
 
 void Game::render(
@@ -173,31 +166,38 @@ void Game::renderUI()
     ImGui::Text("Drawcall count %i", drawcallCount);
     if (ImGui::CollapsingHeader("Player Settings")) {
         auto& playerTransform = *m_entity_registry->try_get<TransformComponent>(m_playerEntity);
-        ImGui::SliderFloat("Player Scale X", &playerTransform.scale.x, 0.0f, 1.0f);
-        ImGui::SliderFloat("Player Scale Y", &playerTransform.scale.y, 0.0f, 1.0f);
-        ImGui::SliderFloat("Player Scale Z", &playerTransform.scale.z, 0.0f, 1.0f);
+        ImGui::DragFloat3("Scale##Player", &playerTransform.scale.x, 0.01f); 
+        
         auto& cameraController = *m_entity_registry->try_get<ThirdPersonCameraControllerComponent>(m_cameraEntity);
         ImGui::SliderFloat("Camera Distance", &cameraController.distance, 0.0f, 500.0f);
+        
+        auto& playerController = *m_entity_registry->try_get<PlayerControllerComponent>(m_playerEntity);
+        ImGui::DragFloat("Acceleration Rate", &playerController.acceleration_rate);   
+        ImGui::DragFloat("Friction", &playerController.friction, 0.0f, 60);   
+
+        auto& velocityComponent = *m_entity_registry->try_get<LinearVelocityComponent>(m_playerEntity);
+        float velocity = glm::length(velocityComponent.velocity);
+        ImGui::Text("Current velocity: %.1f m/s", velocity);        
+    }
+    if (ImGui::CollapsingHeader("Player Animation Settings")) {
+        auto& animationController = *m_entity_registry->try_get<PlayerAnimationControllerComponent>(m_playerEntity);
+        ImGui::SliderFloat("Velocity Threshold Walk", &animationController.thresholdWalk, 0.0f, 100.0f);
+        ImGui::SliderFloat("Velocity Threshold Run", &animationController.thresholdRun, 0.0f, 100.0f);
         
         auto& animationComponent = *m_entity_registry->try_get<AnimationComponent>(m_playerEntity);
         ImGui::SliderFloat("Animation Blend", &animationComponent.blendFactor, 0.0f, 1.0f);
         ImGui::SliderInt("Animation Index A", &animationComponent.animIndexA, 0, 3);
         ImGui::SliderInt("Animation Index B", &animationComponent.animIndexB, 0, 3);
         ImGui::Checkbox("Use Layering", &animationComponent.useLayering);
-
-        auto& animationController = *m_entity_registry->try_get<PlayerAnimationControllerComponent>(m_playerEntity);
-        ImGui::SliderFloat("Velocity Threshold Walk", &animationController.thresholdWalk, 0.0f, 100.0f);
-        ImGui::SliderFloat("Velocity Threshold Run", &animationController.thresholdRun, 0.0f, 100.0f);
-
     }
     //NPC
     if (ImGui::CollapsingHeader("NPC Settings")) {
-        auto& npcTransform = *m_entity_registry->try_get<TransformComponent>(m_npcEntity);
-        ImGui::SliderFloat("NPC Scale X", &npcTransform.scale.x, 0.0f, 1.0f);
-        ImGui::SliderFloat("NPC Scale Y", &npcTransform.scale.y, 0.0f, 1.0f);
-        ImGui::SliderFloat("NPC Scale Z", &npcTransform.scale.z, 0.0f, 1.0f);
-        auto& NPCController = *m_entity_registry->try_get<NPCControllerComponent>(m_npcEntity);
-        ImGui::SliderFloat("NPC Velocity Distance", &NPCController.velocity, 0.0f, 500.0f);
+        if (auto npcTransform = m_entity_registry->try_get<TransformComponent>(m_npcEntity)) {
+            ImGui::DragFloat3("Scale##NPC", &npcTransform->scale.x, 0.01f); 
+        }
+        if(auto NPCController = m_entity_registry->try_get<NPCControllerComponent>(m_npcEntity)) {
+            ImGui::SliderFloat("NPC Velocity Distance", &NPCController->velocity, 0.0f, 500.0f);
+        }
     }
     //LIGHT
     if (ImGui::CollapsingHeader("Light Settings")) {
@@ -207,9 +207,10 @@ void Game::renderUI()
             if (ImGui::ColorEdit3("Light color", glm::value_ptr(lightRef.color),
             ImGuiColorEditFlags_NoInputs))
             {}
-            ImGui::DragFloat("Light Pos X", &lightRef.position.x);
-            ImGui::DragFloat("Light Pos Y", &lightRef.position.y);
-            ImGui::DragFloat("Light Pos Z", &lightRef.position.z);
+            ImGui::DragFloat3("Light Pos X", &lightRef.position.x, 0.1f);
+            // ImGui::DragFloat("Light Pos X", &lightRef.position.x);
+            // ImGui::DragFloat("Light Pos Y", &lightRef.position.y);
+            // ImGui::DragFloat("Light Pos Z", &lightRef.position.z);
         }
         else {
             ImGui::Text("No Light Found.");

@@ -46,9 +46,11 @@ struct ThirdPersonCameraControllerComponent{
 struct PlayerControllerComponent{
     using Key = InputManager::Key;
     PlayerControllerComponent(Key fwd, Key left, Key back, Key right,Key sprint,
-                              float move_speed = 5.0f, float sprint_scale = 4.0f) : forward_keybind(fwd),
+                              float move_speed = 5.0f, float sprint_scale = 4.0f, float friction = 54.0f, 
+                              float acceleration_rate = 4.0f) : forward_keybind(fwd),
                               left_keybind(left), backward_keybind(back), right_keybind(right),
-                              sprint_keybind(sprint), move_speed(move_speed), sprint_scale(sprint_scale) {}
+                              sprint_keybind(sprint), move_speed(move_speed), sprint_scale(sprint_scale),
+                              friction(friction), acceleration_rate(acceleration_rate) {}
 
     Key forward_keybind;
     Key left_keybind;
@@ -58,6 +60,8 @@ struct PlayerControllerComponent{
     
     float move_speed;
     float sprint_scale;
+    float friction;
+    float acceleration_rate;
 };
 
 struct PlayerAnimationControllerComponent{
