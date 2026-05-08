@@ -137,7 +137,7 @@ void Game::update(
 
     // //game
     PlayerControllerSystem::Update(deltaTime, input, *m_entity_registry);
-    PlayerAnimationSystem::Update(*m_entity_registry);
+    // PlayerAnimationSystem::Update(*m_entity_registry);
     ThirdPersonCameraControllerSystem::Update(input, *m_entity_registry);
     NPCControllerSystem::Update(deltaTime, *m_entity_registry);
 }
@@ -208,9 +208,6 @@ void Game::renderUI()
             ImGuiColorEditFlags_NoInputs))
             {}
             ImGui::DragFloat3("Light Pos X", &lightRef.position.x, 0.1f);
-            // ImGui::DragFloat("Light Pos X", &lightRef.position.x);
-            // ImGui::DragFloat("Light Pos Y", &lightRef.position.y);
-            // ImGui::DragFloat("Light Pos Z", &lightRef.position.z);
         }
         else {
             ImGui::Text("No Light Found.");

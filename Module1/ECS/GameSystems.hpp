@@ -76,18 +76,17 @@ public:
             if(velocityMag <= animationController.thresholdWalk) {
                 animationComponent.animIndexA = animationController.animIndexIdle;
                 animationComponent.animIndexB = animationController.animIndexWalk;
-                animationComponent.blendFactor = glm::clamp(velocityMag / animationController.thresholdWalk, 0.0f, 1.0f);
-
+                animationComponent.blendFactor = glm::clamp(velocityMag / animationController.thresholdWalk, 
+                                                 0.0f, 1.0f);
             } else if(velocityMag <= animationController.thresholdRun) {
                 animationComponent.animIndexA = animationController.animIndexWalk;
                 animationComponent.animIndexB = animationController.animIndexRun;
                 animationComponent.blendFactor = 
                     glm::clamp((velocityMag - animationController.thresholdWalk)
-                               / (animationController.thresholdRun - animationController.thresholdWalk)
-                               , 0.0f, 1.0f);
+                               / (animationController.thresholdRun - animationController.thresholdWalk),
+                               0.0f, 1.0f);
             }
         }
-
     }
 };
 
