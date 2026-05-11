@@ -18,16 +18,19 @@ public:
         for(auto entity : view)
         {
             auto& player_controller = view.get<PlayerControllerComponent>(entity);
+            auto& input_map = player_controller.inputMap;
             auto& velocity = view.get<LinearVelocityComponent>(entity).velocity; 
             auto& transform = view.get<TransformComponent>(entity); 
 
-            bool forward    = input->IsKeyPressed(player_controller.forward_keybind);
-            bool backward   = input->IsKeyPressed(player_controller.backward_keybind);
-            bool left       = input->IsKeyPressed(player_controller.left_keybind);
-            bool right      = input->IsKeyPressed(player_controller.right_keybind);
-            bool sprint     = input->IsKeyPressed(player_controller.sprint_keybind);
+            bool forward   = input_map.isPressed("forward",  input);
+            bool backward  = input_map.isPressed("backward", input);
+            bool left      = input_map.isPressed("left",     input);
+            bool right     = input_map.isPressed("right",    input);
+            bool sprint    = input_map.isPressed("sprint",   input);
+
             float scale = sprint ? player_controller.sprint_scale : 1.0f;
 
+            //GetCameraController(registry)
             //get third person camera controller, needed to set fwd_dir for player
             auto cam_controller_view = registry.view<ThirdPersonCameraControllerComponent>();
             if (cam_controller_view.empty()) {
@@ -38,23 +41,32 @@ public:
             entt::entity cam_controller_entity = cam_controller_view.front();
             auto& cam_controller = registry.get<ThirdPersonCameraControllerComponent>(cam_controller_entity); 
 
-            // Compute vectors in the local space of the player
+            // Compute local fwd
             glm::vec3 fwd_dir = glm::vec3(glm_aux::R(cam_controller.yaw, glm_aux::vec3_010) * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
             glm::vec3 right_dir = glm::cross(fwd_dir, glm_aux::vec3_010);
 
+            //calculate move direction sum
             glm::vec3 dir_sum = fwd_dir   * ((forward ? 1.0f : 0.0f) + (backward ? -1.0f : 0.0f)) +
                                 right_dir * ((left ? -1.0f : 0.0f)   + (right ? 1.0f : 0.0f));
             
+            
+
+            //apply movement(player_controller, velocity, dirsum)
             if (glm::length(dir_sum) > 0.0001f)
             {
+                //calculate target velocity(dirsum, speed, scale)
                 glm::vec3 move_dir = glm::normalize(dir_sum);
                 glm::vec3 target_velocity =  move_dir * player_controller.move_speed * scale;
+
+                //apply acceleration(velocity, target velocity, acceleration, dt)
                 velocity = glm::mix(velocity, target_velocity, player_controller.acceleration_rate * dt);
             } else
             {
+                //apply friction()
                 velocity *= glm::min(player_controller.friction * dt, 1.0f);
             }
 
+            //setRotationFromVelocity(velocity, transform)
             //makes player face in movement direction
             if (glm::length(velocity) > 0.001f) {
                 //set rotation around y axis (yaw) from velocity vector                

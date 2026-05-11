@@ -41,15 +41,23 @@ bool Game::init()
     m_npcEntity = m_entity_registry->create();
     m_lightEntity = m_entity_registry->create();
 
+    //set up player input map
+    using Key = InputManager::Key;
+    InputMap playerInputMap{"Player Input Map"};
+    playerInputMap.addKeybind("forward",  std::vector<Key>{Key::W, Key::Up});
+    playerInputMap.addKeybind("left",     std::vector<Key>{Key::A, Key::Left});
+    playerInputMap.addKeybind("backward", std::vector<Key>{Key::S, Key::Down});
+    playerInputMap.addKeybind("right",    std::vector<Key>{Key::D, Key::Right});
+    playerInputMap.addKeybind("sprint",   std::vector<Key>{Key::LeftShift});
+
     //Assign components to entities
     //PLAYER
     m_entity_registry->emplace<TransformComponent>(m_playerEntity,
         glm_aux::vec3_000, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_playerEntity, std::weak_ptr(characterMesh));
     m_entity_registry->emplace<LinearVelocityComponent>(m_playerEntity, LinearVelocityComponent{});
-    using Key = InputManager::Key;
     m_entity_registry->emplace<PlayerControllerComponent>(
-        m_playerEntity, Key::W, Key::A, Key::S, Key::D, Key::LeftShift);
+        m_playerEntity, playerInputMap);
     m_entity_registry->emplace<AnimationComponent>(m_playerEntity,
         0, 1, 1.0f, 1.0f, false, 0.0f, std::string("mixamorig:Spine"));
     m_entity_registry->emplace<PlayerAnimationControllerComponent>(m_playerEntity,
@@ -85,8 +93,8 @@ bool Game::init()
         glm::vec3{10.0f, 0.0f, -10.0f}, 
         glm::vec3{30.0f, 0.0f, -10.0f}, 
         glm::vec3{30.0f, 0.0f, -35.0f}});
-    m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
-        2, 4, 1.0f, 1.0f, true, 0.0f, std::string("mixamorig:Spine"));
+    // m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
+    //     2, 4, 1.0f, 1.0f, true, 0.0f, std::string("mixamorig:Spine"));
 
     //POINT LIGHT
     m_entity_registry->emplace<PointLightComponent>(m_lightEntity,
