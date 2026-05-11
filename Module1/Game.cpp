@@ -137,7 +137,7 @@ void Game::update(
 
     // //game
     PlayerControllerSystem::Update(deltaTime, input, *m_entity_registry);
-    // PlayerAnimationSystem::Update(*m_entity_registry);
+    PlayerAnimationSystem::Update(*m_entity_registry);
     ThirdPersonCameraControllerSystem::Update(input, *m_entity_registry);
     NPCControllerSystem::Update(deltaTime, *m_entity_registry);
 }

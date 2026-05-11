@@ -45,7 +45,7 @@ struct ThirdPersonCameraControllerComponent{
 
 struct PlayerControllerComponent{
     using Key = InputManager::Key;
-    PlayerControllerComponent(Key fwd, Key left, Key back, Key right,Key sprint,
+    PlayerControllerComponent(Key fwd, Key left, Key back, Key right, Key sprint,
                               float move_speed = 5.0f, float sprint_scale = 4.0f, float friction = 54.0f, 
                               float acceleration_rate = 4.0f) : forward_keybind(fwd),
                               left_keybind(left), backward_keybind(back), right_keybind(right),

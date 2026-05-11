@@ -11,7 +11,6 @@ struct TransformComponent {
     glm::vec3 position;
     float pitch;
     float yaw;
-    // glm::mat3 rotation;
     glm::vec3 scale;
 
     glm::mat4 RotationMatrix() const {
