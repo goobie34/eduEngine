@@ -20,35 +20,15 @@ bool Game::init()
     grassMesh->load("assets/grass/grass_trees_merged.fbx", false);
 
     horseMesh = std::make_shared<eeng::RenderableMesh>();
-    // horseMesh->load("assets/Animals/Horse.fbx", false);
-    horseMesh->load("assets/Chad/Chad.fbx");
-    horseMesh->load("assets/Chad/Idle.fbx", true);
-    horseMesh->load("assets/Chad/Walking.fbx", true);
-    horseMesh->load("assets/Chad/Running.fbx", true);
-    horseMesh->load("assets/Chad/Dancing.fbx", true);
+    horseMesh->load("assets/Animals/Horse.fbx", false);
 
-    characterMesh = std::make_shared<eeng::RenderableMesh>();
-    // characterMesh->load("assets/Amy/Ch46_nonPBR.fbx");      //anim index 0
-    // characterMesh->load("assets/Amy/idle.fbx", true);       //1    
-    // characterMesh->load("assets/Amy/walking.fbx", true);    //2
-    // characterMesh->load("assets/Amy/running.fbx", true);    //3
-    // // characterMesh->load("assets/Amy/waving.fbx", true); 
-    // characterMesh->removeTranslationKeys("mixamorig:Hips"); 
-    
-    // characterMesh->load("assets/ExoRed/exo_red.fbx");
-    // characterMesh->load("assets/ExoRed/idle (2).fbx", true);
-    // characterMesh->load("assets/ExoRed/walking.fbx", true);
-    // characterMesh->load("assets/ExoRed/running.fbx", true);
-    // // Remove root motion
-    // characterMesh->removeTranslationKeys("mixamorig:Hips");
-
-    characterMesh->load("assets/Chad/Chad.fbx");
-    characterMesh->load("assets/Chad/Idle.fbx", true);
-    characterMesh->load("assets/Chad/Walking.fbx", true);
-    characterMesh->load("assets/Chad/Running.fbx", true);
-    characterMesh->load("assets/Chad/Dancing.fbx", true);
-    // Remove root motion
-    characterMesh->removeTranslationKeys("mixamorig:Hips");
+    characterMesh = std::make_shared<eeng::RenderableMesh>();//anim index
+    characterMesh->load("assets/Chad/Chad.fbx");             //0   
+    characterMesh->load("assets/Chad/Idle.fbx",    true);    //1
+    characterMesh->load("assets/Chad/Walking.fbx", true);    //2
+    characterMesh->load("assets/Chad/Running.fbx", true);    //3
+    characterMesh->load("assets/Chad/Dancing.fbx", true);    //4
+    characterMesh->removeTranslationKeys("mixamorig:Hips");     //remove root motion
 
     //Set up EnTT
     m_entity_registry = std::make_shared<entt::registry>();
@@ -64,10 +44,7 @@ bool Game::init()
     //Assign components to entities
     //PLAYER
     m_entity_registry->emplace<TransformComponent>(m_playerEntity,
-        glm_aux::vec3_000,
-        0.0f,
-        0.0f,
-        glm::vec3{0.03f, 0.03f, 0.03f});
+        glm_aux::vec3_000, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_playerEntity, std::weak_ptr(characterMesh));
     m_entity_registry->emplace<LinearVelocityComponent>(m_playerEntity, LinearVelocityComponent{});
     using Key = InputManager::Key;
@@ -80,10 +57,7 @@ bool Game::init()
 
     //CAMERA
     m_entity_registry->emplace<TransformComponent>(m_cameraEntity,
-        glm_aux::vec3_000,
-        0.0f,
-        0.0f,
-        glm::vec3{1, 1, 1});
+        glm_aux::vec3_000, 0.0f, 0.0f, glm::vec3{1, 1, 1});
     m_entity_registry->emplace<CameraComponent>(m_cameraEntity,
         60.0f,  // fov
         1.0f,   // near
@@ -103,11 +77,7 @@ bool Game::init()
 
     //NPC
     m_entity_registry->emplace<TransformComponent>(m_npcEntity,
-        glm::vec3{5.0f, 0.0f, -5.0f},
-        0.0f,
-        0.0f,
-        // glm::vec3{0.01f, 0.01f, 0.01f});
-        glm::vec3{0.03f, 0.03f, 0.03f});
+        glm::vec3{5.0f, 0.0f, -5.0f}, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(horseMesh));
     m_entity_registry->emplace<NPCControllerComponent>(m_npcEntity,
         std::vector<glm::vec3>{ //NPC waypoints
