@@ -11,67 +11,82 @@ class PlayerControllerSystem {
 public:    
     static void Update(float dt, InputManagerPtr input, entt::registry& registry)
     {
-        auto view = registry.view<PlayerControllerComponent,
-            LinearVelocityComponent, 
-            TransformComponent>();
+        auto view = registry.view<PlayerControllerComponent, LinearVelocityComponent, TransformComponent>();
         
         for(auto entity : view)
         {
+            //Get components
             auto& player_controller = view.get<PlayerControllerComponent>(entity);
-            auto& input_map = player_controller.inputMap;
+            const auto& input_map = player_controller.inputMap;
             auto& velocity = view.get<LinearVelocityComponent>(entity).velocity; 
             auto& transform = view.get<TransformComponent>(entity); 
 
-            bool forward   = input_map.isPressed("forward",  input);
-            bool backward  = input_map.isPressed("backward", input);
-            bool left      = input_map.isPressed("left",     input);
-            bool right     = input_map.isPressed("right",    input);
-            bool sprint    = input_map.isPressed("sprint",   input);
+            //Get reference to ThirdPersonCameraControllerComponent
+            auto cam_ctrl_ptr = GetCameraController(registry);
+            if (cam_ctrl_ptr == nullptr) return;
+            auto& cam_controller = *cam_ctrl_ptr;
 
-            float scale = sprint ? player_controller.sprint_scale : 1.0f;
+            glm::vec3 fwd_dir = ComputeLocalFwd(cam_controller);
+            glm::vec3 input_vec = GetInputVector(input_map, input, fwd_dir);
 
-            //GetCameraController(registry)
-            //get third person camera controller, needed to set fwd_dir for player
-            auto cam_controller_view = registry.view<ThirdPersonCameraControllerComponent>();
-            if (cam_controller_view.empty()) {
-                assert(false && "PlayerControllerComponent: There is no ThirdPersonCameraControllerComponent in entity registry.");
-                return;
-            }
-
-            entt::entity cam_controller_entity = cam_controller_view.front();
-            auto& cam_controller = registry.get<ThirdPersonCameraControllerComponent>(cam_controller_entity); 
-
-            // Compute local fwd
-            glm::vec3 fwd_dir = glm::vec3(glm_aux::R(cam_controller.yaw, glm_aux::vec3_010) * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
-            glm::vec3 right_dir = glm::cross(fwd_dir, glm_aux::vec3_010);
-
-            //calculate move direction sum
-            glm::vec3 dir_sum = fwd_dir   * ((forward ? 1.0f : 0.0f) + (backward ? -1.0f : 0.0f)) +
-                                right_dir * ((left ? -1.0f : 0.0f)   + (right ? 1.0f : 0.0f));
-            
-            
-
-            //apply movement(player_controller, velocity, dirsum)
-            if (glm::length(dir_sum) > 0.0001f)
-            {
-                //calculate target velocity(dirsum, speed, scale)
-                glm::vec3 move_dir = glm::normalize(dir_sum);
-                glm::vec3 target_velocity =  move_dir * player_controller.move_speed * scale;
-
-                //apply acceleration(velocity, target velocity, acceleration, dt)
+            if (glm::length(input_vec) > 0.0001f)
+            {   
+                //apply movement with acceleration
+                bool is_sprinting = input_map.isPressed("sprint", input);
+                glm::vec3 target_velocity =  GetTargetVelocity(player_controller, input_vec, is_sprinting);
                 velocity = glm::mix(velocity, target_velocity, player_controller.acceleration_rate * dt);
             } else
             {
-                //apply friction()
+                //apply friction
                 velocity *= glm::min(player_controller.friction * dt, 1.0f);
             }
 
-            //setRotationFromVelocity(velocity, transform)
-            //makes player face in movement direction
-            if (glm::length(velocity) > 0.001f) {
-                //set rotation around y axis (yaw) from velocity vector                
-                transform.yaw = std::atan2(velocity.x, velocity.z);    
-            }
+            SetRotationFromVelocity(transform, velocity);
+        }
+    }
+    static const ThirdPersonCameraControllerComponent* GetCameraController(entt::registry& registry) {
+        auto cam_controller_view = registry.view<ThirdPersonCameraControllerComponent>();
+        
+        if (cam_controller_view.empty())
+        {
+            assert(false && "PlayerControllerSystem: There is no ThirdPersonCameraControllerComponent in entity registry.");
+            return nullptr;
+        }
+
+        entt::entity cam_controller_entity = cam_controller_view.front();
+        const ThirdPersonCameraControllerComponent* cam_controller = &registry.get<ThirdPersonCameraControllerComponent>(cam_controller_entity);
+        return cam_controller;
+    }  
+
+    static glm::vec3 ComputeLocalFwd(const ThirdPersonCameraControllerComponent& cam_controller) {
+        return glm::vec3(glm_aux::R(cam_controller.yaw, glm_aux::vec3_010) * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
+    } 
+
+    static glm::vec3 GetInputVector(const InputMap& input_map, InputManagerPtr input, glm::vec3 fwd_dir) {
+        bool forward   = input_map.isPressed("forward",  input);
+        bool backward  = input_map.isPressed("backward", input);
+        bool left      = input_map.isPressed("left",     input);
+        bool right     = input_map.isPressed("right",    input);
+
+        glm::vec3 right_dir = glm::cross(fwd_dir, glm_aux::vec3_010);
+
+        //calculate move direction sum
+        glm::vec3 input_vec = fwd_dir   * ((forward ? 1.0f : 0.0f) + (backward ? -1.0f : 0.0f)) +
+                              right_dir * ((left ? -1.0f : 0.0f)   + (right ? 1.0f : 0.0f));
+
+        return input_vec;
+    }
+
+    static glm::vec3 GetTargetVelocity(PlayerControllerComponent& player_controller, glm::vec3 input_vec, bool is_sprinting) {
+        glm::vec3 move_dir = glm::normalize(input_vec);
+        float speed_scale = is_sprinting ? player_controller.sprint_scale : 1.0f;
+        glm::vec3 target_velocity =  move_dir * player_controller.move_speed * speed_scale;
+        return target_velocity;
+    }
+
+    static void SetRotationFromVelocity(TransformComponent& transform, const glm::vec3& velocity) {
+        if (glm::length(velocity) > 0.001f) {
+            transform.yaw = std::atan2(velocity.x, velocity.z);    
         }
     }
 };
