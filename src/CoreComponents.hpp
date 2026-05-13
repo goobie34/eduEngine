@@ -7,6 +7,11 @@
 
 using namespace eeng;
 
+struct InfoComponent{
+    std::string name;
+    entt:entity id;
+};
+
 struct TransformComponent {
     glm::vec3 position;
     float pitch;

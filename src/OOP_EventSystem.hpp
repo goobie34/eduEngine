@@ -25,7 +25,7 @@ struct Event {
 class EventListener {
 public:
     virtual ~EventListener() {};
-    virtual void OnNotify(EventSource& entity, Event event) = 0;
+    virtual void OnNotify(entt::entity entity, Event event) = 0;
 };
 
 //Source
@@ -37,6 +37,7 @@ protected:
 public:
     void AddObserver(EventListener* observer);
     void RemoveObserver(EventListener* observer);
+    entt::entity m_entity;
 };
 
 class EventQueue : EventSource, EventListener {

@@ -138,7 +138,7 @@ void Game::render(
 void Game::renderUI()
 {
     // Begin game info ImGui window
-    ImGui::Begin("Game Info");
+    ImGui::Begin("Entity Info");
 
     //PLAYER
     ImGui::Text("Drawcall count %i", drawcallCount);

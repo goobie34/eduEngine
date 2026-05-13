@@ -1,4 +1,4 @@
-#include "EventSystem.hpp"
+#include "OOP_EventSystem.hpp"
 #include <array>
 
 #pragma once
@@ -10,7 +10,7 @@ void EventSource::Notify(Event event)
     {
         if(auto listener = m_listeners[i].lock())
         {
-            listener->OnNotify(*this, event);
+            listener->OnNotify(m_entity, event);
         }
     }
 }
