@@ -8,6 +8,10 @@
 
 using namespace eeng;
 
+enum EventType : uint8_t {
+    PLAYER_INTERACT
+};
+
 struct NPCControllerComponent{
     enum WaypointOrder { Sequential, Random };
     NPCControllerComponent(std::vector<glm::vec3> waypoints, float velocity = 5.0f,
@@ -59,4 +63,8 @@ struct PlayerControllerComponent{
 struct PlayerAnimationControllerComponent{
     int animIndexIdle, animIndexWalk, animIndexRun;
     float thresholdWalk, thresholdRun;
+};
+
+struct PlayerInteractComponent {
+    InputMap inputMap;
 };

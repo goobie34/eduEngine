@@ -1,7 +1,7 @@
 #include "EventComponents.hpp"
 #pragma once
 
-class ObserverSystem {
+static class ObserverSystem {
 public:    
     static void Update(entt::registry& registry)
     {
@@ -41,7 +41,7 @@ public:
     }
 
     static void HandleEvents(SourceComponent& sourceComponent, entt::registry& registry) {
-        std::vector<Event> events = sourceComponent.events;
+        std::vector<Event>& events = sourceComponent.events;
         std::vector<entt::entity>& observers = sourceComponent.observers;
         
         while(events.size() > 0) {
@@ -52,6 +52,7 @@ public:
             }
             //erase those events we just handled, if more have arrived, the loop will go again
             events.erase(events.begin(), events.begin() + index_end + 1);
+
         }
     }
 
@@ -64,7 +65,7 @@ public:
     }
 };
 
-class EventQueueSystem {
+static class EventQueueSystem {
 public:    
     static void Update(float dt, entt::registry& registry)
     {
@@ -86,6 +87,5 @@ public:
                 sourceComponent->AddEvent(event);
             }
         }
-
     }
-}
+};

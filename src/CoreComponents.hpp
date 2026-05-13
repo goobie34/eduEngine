@@ -9,7 +9,6 @@ using namespace eeng;
 
 struct InfoComponent{
     std::string name;
-    entt:entity id;
 };
 
 struct TransformComponent {

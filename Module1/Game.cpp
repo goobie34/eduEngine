@@ -3,9 +3,12 @@
 #include "imgui.h"
 #include "Game.hpp"
 #include "CoreComponents.hpp"
+#include "EventComponents.hpp"
+#include "EventSystems.hpp"
 #include "CoreSystems.hpp"
 #include "ECS/GameComponents.hpp"
 #include "ECS/GameSystems.hpp"
+#include "Log.hpp"
 
 bool Game::init()
 {
@@ -38,8 +41,15 @@ bool Game::init()
     m_cameraEntity = m_entity_registry->create();
     m_grassEntity = m_entity_registry->create();
     m_npcEntity = m_entity_registry->create();
-    m_npcEntity = m_entity_registry->create();
     m_lightEntity = m_entity_registry->create();
+    m_guiEntity = m_entity_registry->create();
+
+    m_entity_registry->emplace<InfoComponent>(m_playerEntity, "player");
+    m_entity_registry->emplace<InfoComponent>(m_cameraEntity, "camera");
+    m_entity_registry->emplace<InfoComponent>(m_grassEntity, "grass");
+    m_entity_registry->emplace<InfoComponent>(m_npcEntity, "npc");
+    m_entity_registry->emplace<InfoComponent>(m_lightEntity, "light");
+    m_entity_registry->emplace<InfoComponent>(m_guiEntity, "gui entity");
 
     //set up player input map
     using Key = InputManager::Key;
@@ -49,6 +59,10 @@ bool Game::init()
     playerInputMap.addKeybind("backward", std::vector<Key>{Key::S, Key::Down});
     playerInputMap.addKeybind("right",    std::vector<Key>{Key::D, Key::Right});
     playerInputMap.addKeybind("sprint",   std::vector<Key>{Key::LeftShift});
+    playerInputMap.addKeybind("interact", std::vector<Key>{Key::E});
+    
+    SourceComponent playerEventSource;
+    playerEventSource.AddObserver(m_guiEntity);
 
     //Assign components to entities
     //PLAYER
@@ -62,6 +76,8 @@ bool Game::init()
         0, 1, 1.0f, 1.0f, false, 0.0f, std::string("mixamorig:Spine"));
     m_entity_registry->emplace<PlayerAnimationControllerComponent>(m_playerEntity,
         1, 2, 3, 4.0f, 10.0f);
+    m_entity_registry->emplace<PlayerInteractComponent>(m_playerEntity, playerInputMap);
+    m_entity_registry->emplace<SourceComponent>(m_playerEntity, playerEventSource);
 
     //CAMERA
     m_entity_registry->emplace<TransformComponent>(m_cameraEntity,
@@ -101,6 +117,9 @@ bool Game::init()
         glm::vec3{0.0f, 5.0f, 0.0f},    //pos
         glm::vec3{1.0f, 1.0f, 1.0f});   //color
     
+    m_entity_registry->emplace<ObserverComponent>(m_guiEntity, 
+        [] (Event e) {eeng::Log(e.message.c_str());}); //lambda called when this entity is notified, prints every event message to GUI log
+
     return true;
 }
 
@@ -109,12 +128,16 @@ void Game::update(
     float deltaTime,
     InputManagerPtr input)
 {
+    //Events
+    ObserverSystem::Update(*m_entity_registry);
+
     // //core
     MovementSystem::Update(deltaTime, *m_entity_registry);
     AnimationSystem::Update(deltaTime, *m_entity_registry);
 
     // //game
     PlayerControllerSystem::Update(deltaTime, input, *m_entity_registry);
+    PlayerInteractSystem::Update(time, input, *m_entity_registry);
     PlayerAnimationSystem::Update(*m_entity_registry);
     ThirdPersonCameraControllerSystem::Update(input, *m_entity_registry);
     NPCControllerSystem::Update(deltaTime, *m_entity_registry);
@@ -140,57 +163,60 @@ void Game::renderUI()
     // Begin game info ImGui window
     ImGui::Begin("Entity Info");
 
-    //PLAYER
+    //Editor GUI
     ImGui::Text("Drawcall count %i", drawcallCount);
-    if (ImGui::CollapsingHeader("Player Settings")) {
-        auto& playerTransform = *m_entity_registry->try_get<TransformComponent>(m_playerEntity);
-        ImGui::DragFloat3("Scale##Player", &playerTransform.scale.x, 0.01f); 
-        
-        auto& cameraController = *m_entity_registry->try_get<ThirdPersonCameraControllerComponent>(m_cameraEntity);
-        ImGui::SliderFloat("Camera Distance", &cameraController.distance, 0.0f, 500.0f);
-        
-        auto& playerController = *m_entity_registry->try_get<PlayerControllerComponent>(m_playerEntity);
-        ImGui::DragFloat("Acceleration Rate", &playerController.acceleration_rate);   
-        ImGui::DragFloat("Friction", &playerController.friction, 0.0f, 60);   
+    auto view = m_entity_registry->view<InfoComponent>();
+    for (auto entity : view) {
+        auto info = view.get<InfoComponent>(entity);
 
-        auto& velocityComponent = *m_entity_registry->try_get<LinearVelocityComponent>(m_playerEntity);
-        float velocity = glm::length(velocityComponent.velocity);
-        ImGui::Text("Current velocity: %.1f m/s", velocity);        
+        if (ImGui::CollapsingHeader(info.name.c_str())) {
+            if (auto transform = m_entity_registry->try_get<TransformComponent>(entity)) {
+                ImGui::Text("transform");
+                ImGui::DragFloat3(std::string("Position##" + info.name).c_str(), &transform->position.x, 0.01f);
+                ImGui::DragFloat3(std::string("Scale##" + info.name).c_str(), &transform->scale.x, 0.01f);
+            }
+            if (auto cameraController = m_entity_registry->try_get<ThirdPersonCameraControllerComponent>(entity)) {
+                ImGui::Text("camera controller");
+                ImGui::SliderFloat(std::string("Camera Distance##" + info.name).c_str(), &cameraController->distance, 0.0f, 500.0f);
+            }
+            if (auto playerController = m_entity_registry->try_get<PlayerControllerComponent>(entity)) {
+                ImGui::Text("player controller");
+                ImGui::DragFloat(std::string("Acceleration##" + info.name).c_str(), &playerController->acceleration_rate);
+                ImGui::DragFloat(std::string("Friction##" + info.name).c_str(), &playerController->friction, 0.0f, 60);
+            }
+            if (auto velocityComponent = m_entity_registry->try_get<LinearVelocityComponent>(entity)) {
+                ImGui::Text("velocity component");
+                float velocity = glm::length(velocityComponent->velocity);
+                ImGui::Text("Current velocity: %.1f m/s", velocity); 
+            }
+        }
     }
-    if (ImGui::CollapsingHeader("Player Animation Settings")) {
-        auto& animationController = *m_entity_registry->try_get<PlayerAnimationControllerComponent>(m_playerEntity);
-        ImGui::SliderFloat("Velocity Threshold Walk", &animationController.thresholdWalk, 0.0f, 100.0f);
-        ImGui::SliderFloat("Velocity Threshold Run", &animationController.thresholdRun, 0.0f, 100.0f);
+
+    // if (ImGui::CollapsingHeader("Player Animation Settings")) {
+    //     auto& animationController = *m_entity_registry->try_get<PlayerAnimationControllerComponent>(m_playerEntity);
+    //     ImGui::SliderFloat("Velocity Threshold Walk", &animationController.thresholdWalk, 0.0f, 100.0f);
+    //     ImGui::SliderFloat("Velocity Threshold Run", &animationController.thresholdRun, 0.0f, 100.0f);
         
-        auto& animationComponent = *m_entity_registry->try_get<AnimationComponent>(m_playerEntity);
-        ImGui::SliderFloat("Animation Blend", &animationComponent.blendFactor, 0.0f, 1.0f);
-        ImGui::SliderInt("Animation Index A", &animationComponent.animIndexA, 0, 3);
-        ImGui::SliderInt("Animation Index B", &animationComponent.animIndexB, 0, 3);
-        ImGui::Checkbox("Use Layering", &animationComponent.useLayering);
-    }
-    //NPC
-    if (ImGui::CollapsingHeader("NPC Settings")) {
-        if (auto npcTransform = m_entity_registry->try_get<TransformComponent>(m_npcEntity)) {
-            ImGui::DragFloat3("Scale##NPC", &npcTransform->scale.x, 0.01f); 
-        }
-        if(auto NPCController = m_entity_registry->try_get<NPCControllerComponent>(m_npcEntity)) {
-            ImGui::SliderFloat("NPC Velocity Distance", &NPCController->velocity, 0.0f, 500.0f);
-        }
-    }
-    //LIGHT
-    if (ImGui::CollapsingHeader("Light Settings")) {
-        auto* lightPtr = m_entity_registry->try_get<PointLightComponent>(m_lightEntity);
-        if (lightPtr) {
-            auto& lightRef = *lightPtr;
-            if (ImGui::ColorEdit3("Light color", glm::value_ptr(lightRef.color),
-            ImGuiColorEditFlags_NoInputs))
-            {}
-            ImGui::DragFloat3("Light Pos X", &lightRef.position.x, 0.1f);
-        }
-        else {
-            ImGui::Text("No Light Found.");
-        }
-    }
+    //     auto& animationComponent = *m_entity_registry->try_get<AnimationComponent>(m_playerEntity);
+    //     ImGui::SliderFloat("Animation Blend", &animationComponent.blendFactor, 0.0f, 1.0f);
+    //     ImGui::SliderInt("Animation Index A", &animationComponent.animIndexA, 0, 3);
+    //     ImGui::SliderInt("Animation Index B", &animationComponent.animIndexB, 0, 3);
+    //     ImGui::Checkbox("Use Layering", &animationComponent.useLayering);
+    // }
+    // //LIGHT
+    // if (ImGui::CollapsingHeader("Light Settings")) {
+    //     auto* lightPtr = m_entity_registry->try_get<PointLightComponent>(m_lightEntity);
+    //     if (lightPtr) {
+    //         auto& lightRef = *lightPtr;
+    //         if (ImGui::ColorEdit3("Light color", glm::value_ptr(lightRef.color),
+    //         ImGuiColorEditFlags_NoInputs))
+    //         {}
+    //         ImGui::DragFloat3("Light Pos X", &lightRef.position.x, 0.1f);
+    //     }
+    //     else {
+    //         ImGui::Text("No Light Found.");
+    //     }
+    // }
     ImGui::Checkbox("Render Gizmos", &m_renderGizmos);
 
     ImGui::End(); // end info window

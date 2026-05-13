@@ -54,6 +54,7 @@ private:
     entt::entity m_grassEntity;
     entt::entity m_cameraEntity;
     entt::entity m_lightEntity;
+    entt::entity m_guiEntity;
 
     // Game meshes
     std::shared_ptr<eeng::RenderableMesh> grassMesh, horseMesh, characterMesh;

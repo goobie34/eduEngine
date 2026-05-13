@@ -190,3 +190,18 @@ public:
         }
     }
 };
+
+static class PlayerInteractSystem {
+public:
+    static void Update(float time, InputManagerPtr input, entt::registry& registry) {
+        auto view = registry.view<PlayerInteractComponent>();
+        for(auto entity : view) {
+            auto& interactComponent = view.get<PlayerInteractComponent>(entity);
+            if (interactComponent.inputMap.isPressed("interact", input)) {
+                if (auto source = registry.try_get<SourceComponent>(entity)) {
+                    source->AddEvent(Event{EventType::PLAYER_INTERACT, time, "Player has interacted!", 0, 0.0f, entity});
+                }
+            }
+        }
+    }
+};

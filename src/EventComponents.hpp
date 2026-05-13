@@ -35,4 +35,4 @@ struct EventQueueComponent {
     float time_since_broadcast;
     std::vector<Event> queue;
     void EnqueueEvent(Event event) { if (queue.size() < capacity) queue.push_back(event);}
-}
+};
