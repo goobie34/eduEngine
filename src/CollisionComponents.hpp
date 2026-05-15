@@ -1,8 +1,27 @@
 #include "glmcommon.hpp"
+#include "AABB.h"
 #include <entt/entt.hpp>
 
 #pragma once
 
-struct SphereCollider {
-    glm::vec4 sphere;
+struct AABBColliderComponent { //add dynamic/static flag
+    bool isTrigger = false;
+    bool setFromMesh = true;
+    eeng::AABB aabb;
+    std::function<void()> OnCollision = [] () { return;};
+};
+struct SphereColliderComponent {
+    bool isTrigger = false;
+    bool setFromMesh = true;
+    glm::vec3 pos;
+    float radius;
+    std::function<void()> OnCollision = [] () { return;};
+};
+
+struct SimpleCollision {
+    entt::entity thisEntity;
+    entt::entity otherEntity;
+    float penetrationDepth;
+    glm::vec3 contactPoint;
+    glm::vec3 contactNormal;
 };

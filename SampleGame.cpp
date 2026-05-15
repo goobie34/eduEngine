@@ -23,15 +23,15 @@ bool Game::init()
     entity_registry->emplace<Tfm>(ent1, Tfm{});
 
     // Grass
-    grassMesh = std::make_shared<eeng::RenderableMesh>();
-    grassMesh->load("assets/grass/grass_trees_merged.fbx", false);
+    m_environmentMesh = std::make_shared<eeng::RenderableMesh>();
+    m_environmentMesh->load("assets/grass/grass_trees_merged.fbx", false);
 
     // Horse
-    horseMesh = std::make_shared<eeng::RenderableMesh>();
-    horseMesh->load("assets/Animals/Horse.fbx", false);
+    m_npcMesh = std::make_shared<eeng::RenderableMesh>();
+    m_npcMesh->load("assets/Animals/Horse.fbx", false);
 
     // Character
-    characterMesh = std::make_shared<eeng::RenderableMesh>();
+    m_characterMesh = std::make_shared<eeng::RenderableMesh>();
 #if 0
     // Character
     characterMesh->load("assets/Ultimate Platformer Pack/Character/Character.fbx", false);
@@ -50,12 +50,12 @@ bool Game::init()
 #endif
 #if 1
     // Amy 5.0.1 PACK FBX
-    characterMesh->load("assets/Amy/Ch46_nonPBR.fbx");
-    characterMesh->load("assets/Amy/idle.fbx", true);
-    characterMesh->load("assets/Amy/walking.fbx", true);
-    characterMesh->load("assets/Amy/waving.fbx", true);
+    m_characterMesh->load("assets/Amy/Ch46_nonPBR.fbx");
+    m_characterMesh->load("assets/Amy/idle.fbx", true);
+    m_characterMesh->load("assets/Amy/walking.fbx", true);
+    m_characterMesh->load("assets/Amy/waving.fbx", true);
     // Remove root motion
-    characterMesh->removeTranslationKeys("mixamorig:Hips");
+    m_characterMesh->removeTranslationKeys("mixamorig:Hips");
 #endif
 #if 0
     // Eve 5.0.1 PACK FBX
@@ -154,24 +154,24 @@ void Game::render(
     forwardRenderer->beginPass(matrices.P, matrices.V, pointlight.pos, pointlight.color, camera.pos);
 
     // Grass
-    forwardRenderer->renderMesh(grassMesh, grassWorldMatrix);
-    grass_aabb = grassMesh->m_model_aabb.post_transform(grassWorldMatrix);
+    forwardRenderer->renderMesh(m_environmentMesh, grassWorldMatrix);
+    grass_aabb = m_environmentMesh->m_model_aabb.post_transform(grassWorldMatrix);
 
     // Horse
-    horseMesh->animate(3, time);
-    forwardRenderer->renderMesh(horseMesh, horseWorldMatrix);
-    horse_aabb = horseMesh->m_model_aabb.post_transform(horseWorldMatrix);
+    m_npcMesh->animate(3, time);
+    forwardRenderer->renderMesh(m_npcMesh, horseWorldMatrix);
+    horse_aabb = m_npcMesh->m_model_aabb.post_transform(horseWorldMatrix);
 
     // Character, instance 1 (middle, moving) - single clip demo
-    characterMesh->animate(middleCharacterAnimIndex, time * characterAnimSpeed);
-    forwardRenderer->renderMesh(characterMesh, characterWorldMatrix1);
-    character_aabb1 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix1);
+    m_characterMesh->animate(middleCharacterAnimIndex, time * characterAnimSpeed);
+    forwardRenderer->renderMesh(m_characterMesh, characterWorldMatrix1);
+    character_aabb1 = m_characterMesh->m_model_aabb.post_transform(characterWorldMatrix1);
 
     // Character, instance 2 (left) - two-clip full-body blend
     // Explanation: Both 'idle' and 'walk' clips are applied to the entire skeleton with a blend factor.
-    characterMesh->animateBlend(1, 2, time, time, leftCharacterAnimBlend);
-    forwardRenderer->renderMesh(characterMesh, characterWorldMatrix2);
-    character_aabb2 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix2);
+    m_characterMesh->animateBlend(1, 2, time, time, leftCharacterAnimBlend);
+    forwardRenderer->renderMesh(m_characterMesh, characterWorldMatrix2);
+    character_aabb2 = m_characterMesh->m_model_aabb.post_transform(characterWorldMatrix2);
 
     // Character, instance 3 (right) - filtered walk + wave
     // Explanation: Nodes in the "mixamorig:Spine" branch (upper body) gets the 'wave' clip, while the rest (lower body) gets the 'walk' clip.
@@ -180,9 +180,9 @@ void Game::render(
     upperBodyFilter.mode = rightCharacterSubtreeUsesWave
         ? eeng::AnimationBranchDesc::Mode::IncludeSubtree
         : eeng::AnimationBranchDesc::Mode::ExcludeSubtree;
-    characterMesh->animateBlend(2 /* walk */, 3 /* wave */, time, time, upperBodyFilter);
-    forwardRenderer->renderMesh(characterMesh, characterWorldMatrix3);
-    character_aabb3 = characterMesh->m_model_aabb.post_transform(characterWorldMatrix3);
+    m_characterMesh->animateBlend(2 /* walk */, 3 /* wave */, time, time, upperBodyFilter);
+    forwardRenderer->renderMesh(m_characterMesh, characterWorldMatrix3);
+    character_aabb3 = m_characterMesh->m_model_aabb.post_transform(characterWorldMatrix3);
 
     // End rendering pass
     drawcallCount = forwardRenderer->endPass();
@@ -249,14 +249,14 @@ void Game::renderUI()
     {
     }
 
-    if (characterMesh)
+    if (m_characterMesh)
     {
         ImGui::Separator();
         ImGui::Text("Middle Character (controllable): Single Clip");
 
         // Combo (drop-down) for animation clip
         int curAnimIndex = middleCharacterAnimIndex;
-        std::string label = (curAnimIndex == -1 ? "Bind pose" : characterMesh->getAnimationName(curAnimIndex));
+        std::string label = (curAnimIndex == -1 ? "Bind pose" : m_characterMesh->getAnimationName(curAnimIndex));
         if (ImGui::BeginCombo("Clip##middle_animclip", label.c_str()))
         {
             // Bind pose item
@@ -267,10 +267,10 @@ void Game::renderUI()
                 ImGui::SetItemDefaultFocus();
 
             // Clip items
-            for (int i = 0; i < characterMesh->getNbrAnimations(); i++)
+            for (int i = 0; i < m_characterMesh->getNbrAnimations(); i++)
             {
                 const bool isSelected = (curAnimIndex == i);
-                const auto label = characterMesh->getAnimationName(i) + "##" + std::to_string(i);
+                const auto label = m_characterMesh->getAnimationName(i) + "##" + std::to_string(i);
                 if (ImGui::Selectable(label.c_str(), isSelected))
                     curAnimIndex = i;
                 if (isSelected)

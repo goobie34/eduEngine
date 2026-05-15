@@ -1,6 +1,7 @@
 #include "glmcommon.hpp"
 #include "RenderableMesh.hpp"
 #include "CoreComponents.hpp"
+#include "CollisionComponents.hpp"
 #include <entt/entt.hpp>
 #include <ForwardRenderer.hpp>
 #include <ShapeRenderer.hpp>
@@ -78,6 +79,24 @@ public:
 class GizmoSystem {
 public:
     static void Render(ShapeRendererPtr shapeRenderer, entt::registry& registry) {
+        PushBoneGizmo(shapeRenderer, registry);
+        PushAABBs    (shapeRenderer, registry);
+        RenderShapes (shapeRenderer, registry);
+    }
+
+    static void PushAABBs(ShapeRendererPtr shapeRenderer, entt::registry& registry) {
+        auto view = registry.view<AABBColliderComponent, TransformComponent>();
+        for(auto entity : view)
+        {
+            const AABBColliderComponent& collider = view.get<AABBColliderComponent>(entity);
+            const TransformComponent& transform = view.get<TransformComponent>(entity);
+            shapeRenderer->push_states(ShapeRendering::Color4u{ 0xFFE61A80 });
+            shapeRenderer->push_AABB(collider.aabb.min, collider.aabb.max);
+            shapeRenderer->pop_states<ShapeRendering::Color4u>();
+        }
+    }
+
+    static void PushBoneGizmo(ShapeRendererPtr shapeRenderer, entt::registry& registry) {
         float axisLen = 10.0f;
 
         auto meshView = registry.view<TransformComponent, MeshComponent>();
@@ -113,6 +132,9 @@ public:
                 }
             }
         }
+    }
+
+    static void RenderShapes(ShapeRendererPtr shapeRenderer, entt::registry& registry) {
         entt::entity cam_entity = RenderSystem::getMainCam(registry);
         assert(cam_entity != entt::null && "GizmoSystem: Cannot find main camera.");
         CameraComponent camera = registry.get<CameraComponent>(cam_entity);

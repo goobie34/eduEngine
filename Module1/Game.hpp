@@ -51,13 +51,16 @@ private:
     // Entities
     entt::entity m_playerEntity;
     entt::entity m_npcEntity;
-    entt::entity m_grassEntity;
+    entt::entity m_environmentEntity;
     entt::entity m_cameraEntity;
     entt::entity m_lightEntity;
     entt::entity m_guiEntity;
 
     // Game meshes
-    std::shared_ptr<eeng::RenderableMesh> grassMesh, horseMesh, characterMesh;
+    std::shared_ptr<eeng::RenderableMesh> m_environmentMesh, m_npcMesh, m_characterMesh, m_itemMesh;
+
+    //AABBs
+    AABB m_playerAABB, m_npcAABB, m_environmentAABB;
 
     // Stats
     int drawcallCount = 0;

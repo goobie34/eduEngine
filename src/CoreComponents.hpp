@@ -20,6 +20,10 @@ struct TransformComponent {
     glm::mat4 RotationMatrix() const {
         return glm_aux::R(yaw, pitch);
     }
+
+    glm::mat4 Matrix() const {
+        return glm_aux::T(position) * RotationMatrix() * glm_aux::S(scale);
+    }
 };
 
 struct LinearVelocityComponent {

@@ -4,6 +4,8 @@
 #include "Game.hpp"
 #include "CoreComponents.hpp"
 #include "EventComponents.hpp"
+#include "CollisionComponents.hpp"
+#include "CollisionSystems.hpp"
 #include "EventSystems.hpp"
 #include "CoreSystems.hpp"
 #include "ECS/GameComponents.hpp"
@@ -19,22 +21,22 @@ bool Game::init()
     shapeRenderer->init();
 
     //Load meshes
-    grassMesh = std::make_shared<eeng::RenderableMesh>();
+    m_environmentMesh = std::make_shared<eeng::RenderableMesh>();
     // grassMesh->load("assets/grass/grass_trees_merged.fbx", false);
-    grassMesh->load("assets/grass/prototype_ground.fbx", false);
+    m_environmentMesh->load("assets/grass/prototype_ground.fbx", false);
 
-    horseMesh = std::make_shared<eeng::RenderableMesh>();
+    m_npcMesh = std::make_shared<eeng::RenderableMesh>();
     // horseMesh->load("assets/Animals/Horse.fbx", false);
-    horseMesh->load("assets/Pete/Pete.fbx", false);
-    horseMesh->load("assets/Pete/Happy Idle.fbx", true);
+    m_npcMesh->load("assets/Pete/Pete.fbx", false);
+    m_npcMesh->load("assets/Pete/Happy Idle.fbx", true);
 
-    characterMesh = std::make_shared<eeng::RenderableMesh>();//anim index
-    characterMesh->load("assets/Chad/Chad.fbx");             //0   
-    characterMesh->load("assets/Chad/Idle.fbx",    true);    //1
-    characterMesh->load("assets/Chad/Walking.fbx", true);    //2
-    characterMesh->load("assets/Chad/Running.fbx", true);    //3
-    characterMesh->load("assets/Chad/Dancing.fbx", true);    //4
-    characterMesh->removeTranslationKeys("mixamorig:Hips");     //remove root motion
+    m_characterMesh = std::make_shared<eeng::RenderableMesh>();//anim index
+    m_characterMesh->load("assets/Chad/Chad.fbx");             //0   
+    m_characterMesh->load("assets/Chad/Idle.fbx",    true);    //1
+    m_characterMesh->load("assets/Chad/Walking.fbx", true);    //2
+    m_characterMesh->load("assets/Chad/Running.fbx", true);    //3
+    m_characterMesh->load("assets/Chad/Dancing.fbx", true);    //4
+    m_characterMesh->removeTranslationKeys("mixamorig:Hips");     //remove root motion
 
     //Set up EnTT
     m_entity_registry = std::make_shared<entt::registry>();
@@ -42,14 +44,14 @@ bool Game::init()
     //Create entities
     m_playerEntity = m_entity_registry->create();
     m_cameraEntity = m_entity_registry->create();
-    m_grassEntity = m_entity_registry->create();
+    m_environmentEntity = m_entity_registry->create();
     m_npcEntity = m_entity_registry->create();
     m_lightEntity = m_entity_registry->create();
     m_guiEntity = m_entity_registry->create();
 
     m_entity_registry->emplace<InfoComponent>(m_playerEntity, "player");
     m_entity_registry->emplace<InfoComponent>(m_cameraEntity, "camera");
-    m_entity_registry->emplace<InfoComponent>(m_grassEntity, "grass");
+    m_entity_registry->emplace<InfoComponent>(m_environmentEntity, "grass");
     m_entity_registry->emplace<InfoComponent>(m_npcEntity, "npc");
     m_entity_registry->emplace<InfoComponent>(m_lightEntity, "light");
     m_entity_registry->emplace<InfoComponent>(m_guiEntity, "gui entity");
@@ -73,7 +75,9 @@ bool Game::init()
     //PLAYER
     m_entity_registry->emplace<TransformComponent>(m_playerEntity,
         glm_aux::vec3_000, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
-    m_entity_registry->emplace<MeshComponent>(m_playerEntity, std::weak_ptr(characterMesh));
+    m_entity_registry->emplace<MeshComponent>(m_playerEntity, std::weak_ptr(m_characterMesh));
+    m_entity_registry->emplace<SphereColliderComponent>(m_playerEntity);
+    m_entity_registry->emplace<AABBColliderComponent>(m_playerEntity);
     m_entity_registry->emplace<LinearVelocityComponent>(m_playerEntity, LinearVelocityComponent{});
     m_entity_registry->emplace<PlayerControllerComponent>(
         m_playerEntity, playerInputMap);
@@ -85,7 +89,7 @@ bool Game::init()
     m_entity_registry->emplace<GUI_InventoryComponent>(m_playerEntity, "ItemName", 5, 5);
     m_entity_registry->emplace<SourceComponent>(m_playerEntity, playerEventSource);
     m_entity_registry->emplace<ObserverComponent>(m_playerEntity,
-        [this] (Event event) {
+        [this] (Event event) {  
             //causes player to "drop" item when INTERACT event is called
             if (event.type == EventType::PLAYER_INTERACT) {
                 if (auto inventory = m_entity_registry->try_get<GUI_InventoryComponent>(m_playerEntity)) {
@@ -107,17 +111,19 @@ bool Game::init()
         m_playerEntity); //lookAt entity
 
     //ENVIRONMENT
-    m_entity_registry->emplace<TransformComponent>(m_grassEntity,
+    m_entity_registry->emplace<TransformComponent>(m_environmentEntity,
         glm::vec3{0.0f, 0.0f, 0.0f},
         0.0f,   //pitch
         0.0f,   //yaw
         glm::vec3{100.0f, 100.0f, 100.0f});
-    m_entity_registry->emplace<MeshComponent>(m_grassEntity, std::weak_ptr(grassMesh));
+    m_entity_registry->emplace<MeshComponent>(m_environmentEntity, std::weak_ptr(m_environmentMesh));
 
     //NPC
     m_entity_registry->emplace<TransformComponent>(m_npcEntity,
         glm::vec3{5.0f, 0.0f, -5.0f}, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
-    m_entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(horseMesh));
+    m_entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(m_npcMesh));
+    m_entity_registry->emplace<SphereColliderComponent>(m_npcEntity);
+    m_entity_registry->emplace<AABBColliderComponent>(m_npcEntity);
     m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
         0, 1, 1.0f, 1.0f, false, 0.0f, std::string("mixamorig:Spine"));
     m_entity_registry->emplace<GUI_ProgressBarComponent>(m_npcEntity);
@@ -163,6 +169,9 @@ void Game::update(
     //core
     MovementSystem::Update(deltaTime, *m_entity_registry);
     AnimationSystem::Update(deltaTime, *m_entity_registry);
+    ColliderSystem::UpdateAABBs(*m_entity_registry);
+    ColliderSystem::UpdateSpheres(*m_entity_registry);
+    CollisionSystem::CheckCollisions(*m_entity_registry);
 
     //game
     PlayerControllerSystem::Update(deltaTime, input, *m_entity_registry);
