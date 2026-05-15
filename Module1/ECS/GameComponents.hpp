@@ -32,13 +32,14 @@ struct NPCControllerComponent{
 
 struct ThirdPersonCameraControllerComponent{
     ThirdPersonCameraControllerComponent(
-        entt::entity lookAt, float distance = 15.0f, float sensitivity = 0.005f)
-        : lookAt(lookAt), distance(distance), sensitivity(sensitivity) {}
+        entt::entity lookAt, float offset = 0.0f, float distance = 15.0f, float sensitivity = 0.005f)
+        : offset(offset), lookAt(lookAt), distance(distance), sensitivity(sensitivity) {}
 
     //set in constructor
     entt::entity lookAt;
     float distance;
     float sensitivity;
+    float offset;
 
     //defaults
     float yaw = 0.0f;
@@ -67,4 +68,11 @@ struct PlayerAnimationControllerComponent{
 
 struct PlayerInteractComponent {
     InputMap inputMap;
+    bool wasInteracting = false;
+};
+
+struct GUI_ProgressBarComponent {
+    float max = 5;
+    float current = 0;
+    glm::vec3 offset = glm_aux::vec3_010 * 1.0f; //does nothing atm
 };

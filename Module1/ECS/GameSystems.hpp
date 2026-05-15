@@ -133,7 +133,8 @@ public:
             if (controller.lookAt == entt::null) continue;
             if (!entityView.contains(controller.lookAt)) continue; //throw error
 
-            glm::vec3& lookAt_pos = entityView.get<TransformComponent>(controller.lookAt).position;
+            glm::vec3 lookAt_pos = entityView.get<TransformComponent>(controller.lookAt).position;
+            lookAt_pos.y += controller.offset;
 
             // Fetch mouse and compute movement since last frame
             auto mouse = input->GetMouseState();
@@ -198,10 +199,66 @@ public:
         for(auto entity : view) {
             auto& interactComponent = view.get<PlayerInteractComponent>(entity);
             if (interactComponent.inputMap.isPressed("interact", input)) {
-                if (auto source = registry.try_get<SourceComponent>(entity)) {
-                    source->AddEvent(Event{EventType::PLAYER_INTERACT, time, "Player has interacted!", 0, 0.0f, entity});
+                if (!interactComponent.wasInteracting)
+                {
+                    if (auto source = registry.try_get<SourceComponent>(entity))
+                    {
+                        source->AddEvent(Event{EventType::PLAYER_INTERACT, time, "Player has interacted!", 0, 0.0f, entity});
+                    }       
                 }
+                interactComponent.wasInteracting = true;
+            } else {
+                interactComponent.wasInteracting = false;
             }
+        }
+    }
+};
+
+static class GUI_ProgressBarSystem {
+public:
+    static void Update(float windowHeight, entt::registry& registry) {
+        entt::entity mainCam_id = RenderSystem::getMainCam(registry);
+        const auto mainCam = registry.get<CameraComponent>(mainCam_id);
+        const auto VP_P_V = mainCam.viewportMatrix * mainCam.projectionMatrix * mainCam.viewMatrix;
+        
+        auto view = registry.view<TransformComponent, GUI_ProgressBarComponent>();
+
+        for(auto entity : view) {
+            const auto transform = registry.get<TransformComponent>(entity);
+            auto progressBar = registry.get<GUI_ProgressBarComponent>(entity);
+
+            auto world_pos = transform.position;
+            glm::ivec2 window_coords;
+
+            if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
+            {
+                // Draw an ImGui label at the projected window coordinates of the horse
+                ImGui::SetNextWindowPos(
+                    ImVec2{ float(window_coords.x), float(windowHeight - window_coords.y) },
+                    ImGuiCond_Always,
+                    ImVec2{ 0.0f, 0.0f });
+                ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
+                ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
+
+                ImGuiWindowFlags flags =
+                    ImGuiWindowFlags_NoDecoration |
+                    ImGuiWindowFlags_NoInputs |
+                    // ImGuiWindowFlags_NoBackground |
+                    ImGuiWindowFlags_AlwaysAutoResize;
+
+                if (ImGui::Begin("window_name", nullptr, flags))
+                {
+                    ImGui::Text("Items gathered");
+                    ImGui::ProgressBar(progressBar.current / progressBar.max);
+                    
+                    // ImGui::Text("Window pos (%i, %i)", window_coords.x, window_coords.y);
+                    // ImGui::Text("World pos (%1.1f, %1.1f, %1.1f)", world_pos.x, world_pos.y, world_pos.z);
+                    ImGui::End();
+                }
+                ImGui::PopStyleColor(2);
+            }
+
+        
         }
     }
 };

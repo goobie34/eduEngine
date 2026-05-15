@@ -20,10 +20,13 @@ bool Game::init()
 
     //Load meshes
     grassMesh = std::make_shared<eeng::RenderableMesh>();
-    grassMesh->load("assets/grass/grass_trees_merged.fbx", false);
+    // grassMesh->load("assets/grass/grass_trees_merged.fbx", false);
+    grassMesh->load("assets/grass/prototype_ground.fbx", false);
 
     horseMesh = std::make_shared<eeng::RenderableMesh>();
-    horseMesh->load("assets/Animals/Horse.fbx", false);
+    // horseMesh->load("assets/Animals/Horse.fbx", false);
+    horseMesh->load("assets/Pete/Pete.fbx", false);
+    horseMesh->load("assets/Pete/Happy Idle.fbx", true);
 
     characterMesh = std::make_shared<eeng::RenderableMesh>();//anim index
     characterMesh->load("assets/Chad/Chad.fbx");             //0   
@@ -103,14 +106,16 @@ bool Game::init()
     m_entity_registry->emplace<TransformComponent>(m_npcEntity,
         glm::vec3{5.0f, 0.0f, -5.0f}, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(horseMesh));
-    m_entity_registry->emplace<NPCControllerComponent>(m_npcEntity,
-        std::vector<glm::vec3>{ //NPC waypoints
-        glm::vec3{5.0f,  0.0f,  0.0f},
-        glm::vec3{10.0f, 0.0f, -10.0f}, 
-        glm::vec3{30.0f, 0.0f, -10.0f}, 
-        glm::vec3{30.0f, 0.0f, -35.0f}});
-    // m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
-    //     2, 4, 1.0f, 1.0f, true, 0.0f, std::string("mixamorig:Spine"));
+    // m_entity_registry->emplace<NPCControllerComponent>(m_npcEntity,
+    //     std::vector<glm::vec3>{ //NPC waypoints
+    //     glm::vec3{5.0f,  0.0f,  0.0f},
+    //     glm::vec3{10.0f, 0.0f, -10.0f}, 
+    //     glm::vec3{30.0f, 0.0f, -10.0f}, 
+    //     glm::vec3{30.0f, 0.0f, -35.0f}});
+    m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
+        0, 1, 1.0f, 1.0f, false, 0.0f, std::string("mixamorig:Spine"));
+    m_entity_registry->emplace<GUI_ProgressBarComponent>(m_npcEntity);
+
 
     //POINT LIGHT
     m_entity_registry->emplace<PointLightComponent>(m_lightEntity,
@@ -155,6 +160,7 @@ void Game::render(
     
     //game
     drawcallCount = forwardRenderer->endPass();
+    GUI_ProgressBarSystem::Update(windowHeight, *m_entity_registry);
     renderUI();
 }
 
@@ -177,8 +183,8 @@ void Game::renderUI()
             }
             if (auto cameraController = m_entity_registry->try_get<ThirdPersonCameraControllerComponent>(entity)) {
                 ImGui::Text("camera controller");
-                ImGui::SliderFloat(std::string("Camera Distance##" + info.name).c_str(), &cameraController->distance, 0.0f, 500.0f);
-            }
+                ImGui::SliderFloat(std::string("Camera Distance##" + info.name).c_str(), &cameraController->distance, 0.0f, 100.0f);
+                ImGui::SliderFloat(std::string("Camera Offset##" + info.name).c_str(), &cameraController->offset, 0.0f, 100.0f);            }
             if (auto playerController = m_entity_registry->try_get<PlayerControllerComponent>(entity)) {
                 ImGui::Text("player controller");
                 ImGui::DragFloat(std::string("Acceleration##" + info.name).c_str(), &playerController->acceleration_rate);
