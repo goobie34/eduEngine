@@ -203,7 +203,7 @@ public:
                 {
                     if (auto source = registry.try_get<SourceComponent>(entity))
                     {
-                        source->AddEvent(Event{EventType::PLAYER_INTERACT, time, "Player has interacted!", 0, 0.0f, entity});
+                        source->AddEvent(Event{EventType::PLAYER_INTERACT, time, "Player has interacted!", 1, 0.0f, entity});
                     }       
                 }
                 interactComponent.wasInteracting = true;
@@ -257,8 +257,51 @@ public:
                 }
                 ImGui::PopStyleColor(2);
             }
+        }
+    }
+};
 
-        
+static class GUI_InventorySystem {
+public:
+    static void Update(entt::registry& registry) {
+        auto view = registry.view<GUI_InventoryComponent>();
+        for(auto entity : view) {
+            auto inventory = registry.get<GUI_InventoryComponent>(entity);
+
+            // ImGui::SetNextWindowPos(
+            //     ImVec2{ 0.5f, 0.5f },
+            //     ImGuiCond_Always,
+            //     ImVec2{ 0.0f, 0.0f });
+            // ImGui::PushStyleColor(ImGuiCol_WindowBg, 0x80000000);
+            // ImGui::PushStyleColor(ImGuiCol_Text, 0xffffffff);
+
+            ImGui::Begin(std::string("Inventory").c_str());
+            ImGui::TextColored(ImVec4(1, 0, 0, 1), std::string(inventory.itemName + ": " + std::to_string(inventory.current)).c_str());
+            ImGui::End();
+        }
+    }
+};
+static class GUI_QuestLogSystem {
+public:
+    static void Update(entt::registry& registry) {
+        auto view = registry.view<GUI_QuestLogComponent>();
+        for(auto entity : view) {
+            auto questLog = registry.get<GUI_QuestLogComponent>(entity);
+            ImGui::Begin("Quest Log");
+            for(int i = 0; i < questLog.log.size(); i++) {
+                ImVec4 color;
+                if (i == (questLog.log.size() - 1)) {
+                    color = {0, 1, 0, 1};
+                } else {
+                    color = {1, 1, 1, 1};
+                }
+                
+                ImGui::TextColored(color,
+                    std::string(std::to_string(i + 1) + ". " + questLog.log[i]).c_str());
+
+            }
+
+            ImGui::End();
         }
     }
 };

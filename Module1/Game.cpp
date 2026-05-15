@@ -66,6 +66,8 @@ bool Game::init()
     
     SourceComponent playerEventSource;
     playerEventSource.AddObserver(m_guiEntity);
+    playerEventSource.AddObserver(m_npcEntity);
+    playerEventSource.AddObserver(m_playerEntity);
 
     //Assign components to entities
     //PLAYER
@@ -80,7 +82,17 @@ bool Game::init()
     m_entity_registry->emplace<PlayerAnimationControllerComponent>(m_playerEntity,
         1, 2, 3, 4.0f, 10.0f);
     m_entity_registry->emplace<PlayerInteractComponent>(m_playerEntity, playerInputMap);
+    m_entity_registry->emplace<GUI_InventoryComponent>(m_playerEntity, "ItemName", 5, 5);
     m_entity_registry->emplace<SourceComponent>(m_playerEntity, playerEventSource);
+    m_entity_registry->emplace<ObserverComponent>(m_playerEntity,
+        [this] (Event event) {
+            //causes player to "drop" item when INTERACT event is called
+            if (event.type == EventType::PLAYER_INTERACT) {
+                if (auto inventory = m_entity_registry->try_get<GUI_InventoryComponent>(m_playerEntity)) {
+                    inventory->drop();
+                }
+            }
+        });
 
     //CAMERA
     m_entity_registry->emplace<TransformComponent>(m_cameraEntity,
@@ -106,15 +118,18 @@ bool Game::init()
     m_entity_registry->emplace<TransformComponent>(m_npcEntity,
         glm::vec3{5.0f, 0.0f, -5.0f}, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(horseMesh));
-    // m_entity_registry->emplace<NPCControllerComponent>(m_npcEntity,
-    //     std::vector<glm::vec3>{ //NPC waypoints
-    //     glm::vec3{5.0f,  0.0f,  0.0f},
-    //     glm::vec3{10.0f, 0.0f, -10.0f}, 
-    //     glm::vec3{30.0f, 0.0f, -10.0f}, 
-    //     glm::vec3{30.0f, 0.0f, -35.0f}});
     m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
         0, 1, 1.0f, 1.0f, false, 0.0f, std::string("mixamorig:Spine"));
     m_entity_registry->emplace<GUI_ProgressBarComponent>(m_npcEntity);
+    m_entity_registry->emplace<ObserverComponent>(m_npcEntity,
+        [this] (Event event) {
+            //this lambda changes value of progressbar when INTERACT event is called, by the int value sent in the event payload
+            if (event.type == EventType::PLAYER_INTERACT) {
+                if (auto progressBar = m_entity_registry->try_get<GUI_ProgressBarComponent>(m_npcEntity)) {
+                    progressBar->changeValue(event.data_int);
+                }
+            }
+        });
 
 
     //POINT LIGHT
@@ -122,8 +137,17 @@ bool Game::init()
         glm::vec3{0.0f, 5.0f, 0.0f},    //pos
         glm::vec3{1.0f, 1.0f, 1.0f});   //color
     
+    //GUI
+    m_entity_registry->emplace<GUI_QuestLogComponent>(m_guiEntity, std::vector<std::string>{"Talk to Pete!"});
     m_entity_registry->emplace<ObserverComponent>(m_guiEntity, 
-        [] (Event e) {eeng::Log(e.message.c_str());}); //lambda called when this entity is notified, prints every event message to GUI log
+        [this] (Event e) {
+            if (auto questLog = m_entity_registry->try_get<GUI_QuestLogComponent>(m_guiEntity)) {
+                    questLog->add(std::string(e.message + ": " + std::to_string(e.timeStamp)).c_str());
+            }
+
+            eeng::Log(e.message.c_str());
+        }); //lambda called when this entity is notified, prints every event message to GUI log
+
 
     return true;
 }
@@ -136,11 +160,11 @@ void Game::update(
     //Events
     ObserverSystem::Update(*m_entity_registry);
 
-    // //core
+    //core
     MovementSystem::Update(deltaTime, *m_entity_registry);
     AnimationSystem::Update(deltaTime, *m_entity_registry);
 
-    // //game
+    //game
     PlayerControllerSystem::Update(deltaTime, input, *m_entity_registry);
     PlayerInteractSystem::Update(time, input, *m_entity_registry);
     PlayerAnimationSystem::Update(*m_entity_registry);
@@ -161,6 +185,8 @@ void Game::render(
     //game
     drawcallCount = forwardRenderer->endPass();
     GUI_ProgressBarSystem::Update(windowHeight, *m_entity_registry);
+    GUI_InventorySystem::Update(*m_entity_registry);
+    GUI_QuestLogSystem::Update(*m_entity_registry);
     renderUI();
 }
 
@@ -184,7 +210,8 @@ void Game::renderUI()
             if (auto cameraController = m_entity_registry->try_get<ThirdPersonCameraControllerComponent>(entity)) {
                 ImGui::Text("camera controller");
                 ImGui::SliderFloat(std::string("Camera Distance##" + info.name).c_str(), &cameraController->distance, 0.0f, 100.0f);
-                ImGui::SliderFloat(std::string("Camera Offset##" + info.name).c_str(), &cameraController->offset, 0.0f, 100.0f);            }
+                ImGui::SliderFloat(std::string("Camera Offset##" + info.name).c_str(), &cameraController->offset, 0.0f, 100.0f);            
+            }
             if (auto playerController = m_entity_registry->try_get<PlayerControllerComponent>(entity)) {
                 ImGui::Text("player controller");
                 ImGui::DragFloat(std::string("Acceleration##" + info.name).c_str(), &playerController->acceleration_rate);

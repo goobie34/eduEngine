@@ -9,7 +9,8 @@
 using namespace eeng;
 
 enum EventType : uint8_t {
-    PLAYER_INTERACT
+    PLAYER_INTERACT,
+    QUEST_UPDATE
 };
 
 struct NPCControllerComponent{
@@ -72,7 +73,41 @@ struct PlayerInteractComponent {
 };
 
 struct GUI_ProgressBarComponent {
-    float max = 5;
-    float current = 0;
+    float max = 5.0f;
+    float current = 0.0f;
+
     glm::vec3 offset = glm_aux::vec3_010 * 1.0f; //does nothing atm
+    void changeValue(float change) {
+        current += change;
+        if (current > max) current = max;
+        if (current < 0) current = 0;
+    }
+    // void changeValue(Event event) {
+    //     current += event.data_int;
+    //     if (current > max) current = max;
+    //     if (current < 0) current = 0;
+    // }
+};
+struct GUI_InventoryComponent {
+    std::string itemName = "";
+    int capacity = 5;
+    int current = 5;
+
+    void pickUp() {
+        current++;
+        if (current > capacity) current = capacity;
+    }
+    void drop() {
+        current--;
+        if (current < 0) current = 0;
+    }
+};
+struct GUI_QuestLogComponent {
+    std::vector<std::string> log;
+    int capacity = 255;
+    void add(std::string logUpdate) {
+        if (log.size() < capacity) {
+            log.push_back(logUpdate);
+        }
+    }
 };
