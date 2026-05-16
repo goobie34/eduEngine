@@ -2,10 +2,9 @@
 #include "RenderableMesh.hpp"
 #include "CoreComponents.hpp"
 #include "CollisionComponents.hpp"
+#include "BVHSystems.hpp"
 #include <entt/entt.hpp>
 #include "Log.hpp"
-
-
 
 #pragma once
 
@@ -45,9 +44,50 @@ public:
 };
 class CollisionSystem {
 public:
+    static void Update(entt::registry& registry) {
+        std::vector<std::pair<SphereColliderComponent, entt::entity>> entitySphereColliders;
+        auto view = registry.view<SphereColliderComponent, AABBColliderComponent, TransformComponent>();
+
+        // --- BROAD PHASE ---
+        for(auto entity : view) {
+            auto collider = view.get<SphereColliderComponent>(entity);
+            entitySphereColliders.push_back(std::pair<SphereColliderComponent, entt::entity>(collider, entity));
+        }
+        float maxDistanceBetweenLeaves = 10.0f;
+        auto treeRoot = BVHSystem::BuildBVHBottomUp(entitySphereColliders, maxDistanceBetweenLeaves);
+        
+        for(auto entityA : view) {
+            auto sphereLooseA = view.get<SphereColliderComponent>(entityA);
+            auto aabbTightA = view.get<AABBColliderComponent>(entityA);
+            std::vector<entt::entity> possibleCollisions = BVHSystem::FindPossibleCollisions(treeRoot, sphereLooseA.GetSphere());
+            for(auto entityB : possibleCollisions) {
+                if (entityA == entityB) continue;
+                if (entityB == entt::null) continue;
+                
+                //narrow phase: step 1 (loose)
+                auto sphereLooseB = view.get<SphereColliderComponent>(entityB);
+                if(TestSphereSphere(sphereLooseA, sphereLooseB)) {
+                    eeng::Log("LOOSE COLLISION");
+                
+                    //narrow phase: step 2 (tight)
+                    auto aabbTightB = view.get<AABBColliderComponent>(entityB);
+                    if (TestAABBAABB(aabbTightA, aabbTightB)) {
+                        eeng::Log("TIGHT COLLISION");
+                        auto& tfmA = view.get<TransformComponent>(entityA);
+                        SeparateAABBs_XZ(aabbTightA, aabbTightB, tfmA);
+                    }
+                }
+            }
+        }
+
+        // --- NARROW PHASE ---
+        // - loose
+        // - tight
+
+    }
     static void CheckCollisions(entt::registry& registry) {
         // CheckSphereCollisions(registry);
-        CheckAABBCollisions(registry);
+        // CheckAABBCollisions(registry);
     }
 
     static void CheckSphereCollisions(entt::registry& registry) {
@@ -141,119 +181,3 @@ public:
             tfmA.position += shortest * separationModifier;
     }
 };
-
-class BVHSystem {
-private:
-    struct SphereNode {
-        glm::vec4 thisSphere;
-        entt::entity thisEntity;
-        SphereNode* leftChild;
-        SphereNode* rightChild;
-    };
-    
-public:
-//BVH
-    static SphereNode* BuildNodeFromSingleSphere(glm::vec4 sphere, entt::entity entity) {
-        
-        return new SphereNode{sphere, entity, nullptr, nullptr};
-    }
-
-    static SphereNode* BuildNodeFromSpheres(glm::vec4 leftSphere, glm::vec4 rightSphere) {
-        glm::vec3 minPoint, maxPoint;
-        
-        FindMinMaxPoints(leftSphere, rightSphere, minPoint, maxPoint);
-
-        glm::vec3 midPoint = midPoint + (maxPoint - midPoint) * 0.5f;
-        float radius = (maxPoint - minPoint).length() * 0.5f;
-
-        return new SphereNode{glm::vec4(midPoint, radius), entt::null, nullptr, nullptr};
-    }
-
-    static std::vector<std::pair<SphereNode*, SphereNode*>> FindPairs(std::vector<SphereNode*> openList, float maxDistance) {
-        std::vector<std::pair<SphereNode*, SphereNode*>> allPairs;
-        std::vector<SphereNode*> availableSpheres = openList;
-
-        while(!availableSpheres.empty()) {
-            SphereNode* current = availableSpheres.back();
-
-            float closestDistance = maxDistance;
-            SphereNode* bestMatch = nullptr;
-            int bestIndex = -1;
-
-            for(int j = 0; j < availableSpheres.size(); j++) {
-                float distance = DistanceBetweenSpheres(current->thisSphere, availableSpheres[j]->thisSphere);
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    bestMatch = availableSpheres[j];
-                    bestIndex = j;
-                }
-            }
-
-            if (bestMatch) {
-                availableSpheres.erase(availableSpheres.begin() + bestIndex);
-            }
-
-            allPairs.push_back({current, bestMatch});
-        }
-    }
-
-static SphereNode* BuildBVHBottomUp(std::vector<std::pair<SphereColliderComponent, entt::entity>> entitySphereColliders, float maxDistanceBetweenLeaves) {
-    if (entitySphereColliders.size() == 0) return nullptr;
-
-    std::vector<SphereNode*> openList;
-    for (auto sphereCollider : entitySphereColliders) {
-        openList.push_back(BuildNodeFromSingleSphere(sphereCollider.first.GetSphere(), sphereCollider.second));
-    }
-
-    while(openList.size() != 1) {
-        auto pairs = FindPairs(openList, maxDistanceBetweenLeaves);
-            openList.clear();
-            for(auto pair : pairs) {
-                if(pair.second) {
-                    auto node = BuildNodeFromSpheres(pair.first->thisSphere, pair.second->thisSphere);
-                    node->leftChild = pair.first;
-                    node->rightChild = pair.second;
-                    openList.push_back(node);
-                }
-                else {
-                    auto node = BuildNodeFromSingleSphere(pair.first->thisSphere, entt::null);
-                    node->leftChild = pair.first;
-                    openList.push_back(node);
-                }
-            }
-        maxDistanceBetweenLeaves = std::numeric_limits<float>::max();
-    }
-    return openList[0];
-}
-
-static std::vector<entt::entity> FindPossibleCollisions(SphereNode* treeRoot, glm::vec4 sphere) {
-    std::vector<entt::entity> possibleCollisions;
-
-    if (!treeRoot) return possibleCollisions;
-
-    if (!TestSphere(treeRoot->thisSphere))
-}
-
-//helpers
-    static float DistanceBetweenSpheres(glm::vec4 leftSphere, glm::vec4 rightSphere) {
-        float centerDistance = (glm::vec3(rightSphere) - glm::vec3(leftSphere)).length();
-        float surfaceDistance = centerDistance - (leftSphere.w + rightSphere.w);
-        return std::max(0.0f, surfaceDistance);
-    }
-
-    static void FindMinMaxPoints(glm::vec4 leftSphere, glm::vec4 rightSphere, glm::vec3 &minOut, glm::vec3 &maxOut){
-        glm::vec3 leftCenter = glm::vec3(leftSphere);
-        glm::vec3 rightCenter = glm::vec3(rightSphere);
-        float leftRadius = leftSphere.w;
-        float rightRadius = rightSphere.w;
-
-        minOut.x = std::min(leftCenter.x - leftRadius, rightCenter.x - rightRadius);
-        maxOut.x = std::max(leftCenter.x + leftRadius, rightCenter.x + rightRadius);
-
-        minOut.y = std::min(leftCenter.y - leftRadius, rightCenter.y - rightRadius);
-        maxOut.y = std::max(leftCenter.y + leftRadius, rightCenter.y + rightRadius);
-
-        minOut.z = std::min(leftCenter.z - leftRadius, rightCenter.z - rightRadius);
-        maxOut.z = std::max(leftCenter.z + leftRadius, rightCenter.z + rightRadius);
-    }
-}

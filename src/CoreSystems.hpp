@@ -81,6 +81,7 @@ public:
     static void Render(ShapeRendererPtr shapeRenderer, entt::registry& registry) {
         PushBoneGizmo(shapeRenderer, registry);
         PushAABBs    (shapeRenderer, registry);
+        PushSpheres  (shapeRenderer, registry);     
         RenderShapes (shapeRenderer, registry);
     }
 
@@ -90,8 +91,22 @@ public:
         {
             const AABBColliderComponent& collider = view.get<AABBColliderComponent>(entity);
             const TransformComponent& transform = view.get<TransformComponent>(entity);
-            shapeRenderer->push_states(ShapeRendering::Color4u{ 0xFFE61A80 });
+            shapeRenderer->push_states(ShapeRendering::Color4u::Red);
             shapeRenderer->push_AABB(collider.aabb.min, collider.aabb.max);
+            shapeRenderer->pop_states<ShapeRendering::Color4u>();
+        }
+    }
+
+    static void PushSpheres(ShapeRendererPtr shapeRenderer, entt::registry& registry) {
+        auto view = registry.view<SphereColliderComponent, TransformComponent>();
+        for(auto entity : view) {
+            auto& sphereCollider = view.get<SphereColliderComponent>(entity);
+            glm::mat4 M = glm::translate(glm::mat4(1.0f), sphereCollider.pos);            
+            
+            shapeRenderer->push_states(ShapeRendering::Color4u::Blue);
+            shapeRenderer->push_states(M);
+            shapeRenderer->push_sphere_wireframe(sphereCollider.radius, sphereCollider.radius);
+            shapeRenderer->pop_states<glm::mat4>();
             shapeRenderer->pop_states<ShapeRendering::Color4u>();
         }
     }

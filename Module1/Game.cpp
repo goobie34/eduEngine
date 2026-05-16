@@ -171,7 +171,7 @@ void Game::update(
     AnimationSystem::Update(deltaTime, *m_entity_registry);
     ColliderSystem::UpdateAABBs(*m_entity_registry);
     ColliderSystem::UpdateSpheres(*m_entity_registry);
-    CollisionSystem::CheckCollisions(*m_entity_registry);
+    CollisionSystem::Update(*m_entity_registry);
 
     //game
     PlayerControllerSystem::Update(deltaTime, input, *m_entity_registry);
