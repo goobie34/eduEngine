@@ -51,6 +51,8 @@ private:
     // Entities
     entt::entity m_playerEntity;
     entt::entity m_npcEntity;
+    entt::entity m_npcProximityTriggerEntity;
+    entt::entity m_itemSpawner;
     entt::entity m_environmentEntity;
     entt::entity m_cameraEntity;
     entt::entity m_lightEntity;

@@ -1,5 +1,6 @@
 #include <entt/entt.hpp>
 #include <functional>
+#include "CollisionComponents.hpp"
 #pragma once
 
 struct Event {
@@ -12,6 +13,7 @@ struct Event {
     entt::entity entity;
     int data_int;
     float data_float;
+    SimpleCollision collision{};
 };
 
 struct ObserverComponent {

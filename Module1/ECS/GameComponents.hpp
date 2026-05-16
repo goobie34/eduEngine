@@ -10,7 +10,12 @@ using namespace eeng;
 
 enum EventType : uint8_t {
     PLAYER_INTERACT,
-    QUEST_UPDATE
+    QUEST_UPDATE,
+    BP_COLLISION,
+    NP_COLLISION,
+    ITEM_PICKUP,
+    ITEM_DROPOFF,
+    QUEST_OVER
 };
 
 struct NPCControllerComponent{

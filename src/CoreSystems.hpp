@@ -91,7 +91,7 @@ public:
         {
             const AABBColliderComponent& collider = view.get<AABBColliderComponent>(entity);
             const TransformComponent& transform = view.get<TransformComponent>(entity);
-            shapeRenderer->push_states(ShapeRendering::Color4u::Red);
+            shapeRenderer->push_states(collider.isTrigger ? ShapeRendering::Color4u::Yellow : ShapeRendering::Color4u::Red);
             shapeRenderer->push_AABB(collider.aabb.min, collider.aabb.max);
             shapeRenderer->pop_states<ShapeRendering::Color4u>();
         }
@@ -102,8 +102,8 @@ public:
         for(auto entity : view) {
             auto& sphereCollider = view.get<SphereColliderComponent>(entity);
             glm::mat4 M = glm::translate(glm::mat4(1.0f), sphereCollider.pos);            
-            
-            shapeRenderer->push_states(ShapeRendering::Color4u::Blue);
+
+            shapeRenderer->push_states(sphereCollider.isTrigger ? ShapeRendering::Color4u::Yellow : ShapeRendering::Color4u::Blue);
             shapeRenderer->push_states(M);
             shapeRenderer->push_sphere_wireframe(sphereCollider.radius, sphereCollider.radius);
             shapeRenderer->pop_states<glm::mat4>();

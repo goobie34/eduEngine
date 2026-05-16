@@ -46,6 +46,7 @@ bool Game::init()
     m_cameraEntity = m_entity_registry->create();
     m_environmentEntity = m_entity_registry->create();
     m_npcEntity = m_entity_registry->create();
+    m_npcProximityTriggerEntity = m_entity_registry->create();
     m_lightEntity = m_entity_registry->create();
     m_guiEntity = m_entity_registry->create();
 
@@ -53,6 +54,7 @@ bool Game::init()
     m_entity_registry->emplace<InfoComponent>(m_cameraEntity, "camera");
     m_entity_registry->emplace<InfoComponent>(m_environmentEntity, "grass");
     m_entity_registry->emplace<InfoComponent>(m_npcEntity, "npc");
+    m_entity_registry->emplace<InfoComponent>(m_npcProximityTriggerEntity, "npc proximity trigger");
     m_entity_registry->emplace<InfoComponent>(m_lightEntity, "light");
     m_entity_registry->emplace<InfoComponent>(m_guiEntity, "gui entity");
 
@@ -137,6 +139,19 @@ bool Game::init()
             }
         });
 
+    AABB npcTrigger;
+    npcTrigger.min = glm::vec3{2.0f, 0.0f, -8.0f};
+    npcTrigger.max = glm::vec3{8.0f, 1.0f, -2.0f};
+    m_entity_registry->emplace<TransformComponent>(m_npcProximityTriggerEntity,
+        glm::vec3{5.0f, 0.0f, -5.0f}, 0.0f, 0.0f, glm::vec3{1.0f, 1.0f, 1.0f});
+        m_entity_registry->emplace<AABBColliderComponent>(m_npcProximityTriggerEntity,
+            true,   //trigger
+            true,   //static     
+            false,  // setFromMesh
+            npcTrigger
+            ); 
+
+
 
     //POINT LIGHT
     m_entity_registry->emplace<PointLightComponent>(m_lightEntity,
@@ -215,21 +230,88 @@ void Game::renderUI()
                 ImGui::Text("transform");
                 ImGui::DragFloat3(std::string("Position##" + info.name).c_str(), &transform->position.x, 0.01f);
                 ImGui::DragFloat3(std::string("Scale##" + info.name).c_str(), &transform->scale.x, 0.01f);
+                ImGui::Separator();
+
             }
             if (auto cameraController = m_entity_registry->try_get<ThirdPersonCameraControllerComponent>(entity)) {
                 ImGui::Text("camera controller");
                 ImGui::SliderFloat(std::string("Camera Distance##" + info.name).c_str(), &cameraController->distance, 0.0f, 100.0f);
                 ImGui::SliderFloat(std::string("Camera Offset##" + info.name).c_str(), &cameraController->offset, 0.0f, 100.0f);            
+                ImGui::Separator();
+
             }
             if (auto playerController = m_entity_registry->try_get<PlayerControllerComponent>(entity)) {
                 ImGui::Text("player controller");
                 ImGui::DragFloat(std::string("Acceleration##" + info.name).c_str(), &playerController->acceleration_rate);
                 ImGui::DragFloat(std::string("Friction##" + info.name).c_str(), &playerController->friction, 0.0f, 60);
+                ImGui::Separator();
+
             }
             if (auto velocityComponent = m_entity_registry->try_get<LinearVelocityComponent>(entity)) {
                 ImGui::Text("velocity component");
                 float velocity = glm::length(velocityComponent->velocity);
                 ImGui::Text("Current velocity: %.1f m/s", velocity); 
+                ImGui::Separator();
+
+            }
+            if (auto sphereComponent = m_entity_registry->try_get<SphereColliderComponent>(entity)) {
+                ImGui::Text("Sphere Collider Component");
+                ImGui::Checkbox(std::string("IsStatic##" + info.name).c_str(), &sphereComponent->isStatic);
+                ImGui::Checkbox(std::string("IsTrigger##" + info.name).c_str(), &sphereComponent->isTrigger);
+                ImGui::Checkbox(std::string("SetFromMesh##" + info.name).c_str(), &sphereComponent->setFromMesh);
+                ImGui::DragFloat3(std::string("Position##" + info.name).c_str(), &sphereComponent->pos.x, 0.01f);
+                ImGui::DragFloat(std::string("Radius##" + info.name).c_str(), &sphereComponent->radius, 0.0f, 60);
+                ImGui::Separator();
+
+            }
+            if (auto aabbComponent = m_entity_registry->try_get<AABBColliderComponent>(entity)) {
+                ImGui::Text("AABB Collider Component");
+                ImGui::Checkbox(std::string("IsStatic##" + info.name).c_str(), &aabbComponent->isStatic);
+                ImGui::Checkbox(std::string("IsTrigger##" + info.name).c_str(), &aabbComponent->isTrigger);
+                ImGui::Checkbox(std::string("SetFromMesh##" + info.name).c_str(), &aabbComponent->setFromMesh);
+                ImGui::DragFloat3(std::string("Min##" + info.name).c_str(), &aabbComponent->aabb.min.x, 0.01f);
+                ImGui::DragFloat3(std::string("Max##" + info.name).c_str(), &aabbComponent->aabb.min.x, 0.01f);
+                ImGui::Separator();
+
+            }
+            if (auto observerComponent = m_entity_registry->try_get<ObserverComponent>(entity)) {
+                ImGui::Text("Observer Component");
+                ImGui::Separator();
+            }
+            if (auto sourceComponent = m_entity_registry->try_get<SourceComponent>(entity)) {
+                ImGui::Text("Source Component");
+                ImGui::Text("Observers:");
+                ImGui::Indent();
+                for(auto observer : sourceComponent->observers) {
+                    if (auto observerInfo = m_entity_registry->try_get<InfoComponent>(entity)) {
+                        ImGui::Text(std::string("- " + info.name).c_str());
+                    }
+                }
+                ImGui::Unindent();
+                ImGui::Separator();
+            }
+            if (auto animationController = m_entity_registry->try_get<PlayerAnimationControllerComponent>(entity)) {
+                ImGui::Text("PlayerAnimationController Component");
+                ImGui::SliderFloat(std::string("Velocity Threshold Walk##" + info.name).c_str(), &animationController->thresholdWalk, 0.0f, 100.0f);
+                ImGui::SliderFloat(std::string("Velocity Threshold Run##" + info.name).c_str(), &animationController->thresholdRun, 0.0f, 100.0f);
+                ImGui::Separator();            
+            }
+            if (auto animationComponent = m_entity_registry->try_get<AnimationComponent>(entity)) {
+                ImGui::Text("Animation Component");
+
+                ImGui::SliderFloat("Animation Blend", &animationComponent->blendFactor, 0.0f, 1.0f);
+                ImGui::SliderInt("Animation Index A", &animationComponent->animIndexA, 0, 3);
+                ImGui::SliderInt("Animation Index B", &animationComponent->animIndexB, 0, 3);
+                ImGui::Checkbox("Use Layering", &animationComponent->useLayering);
+                ImGui::Separator();
+            }
+            if (auto lightComponent = m_entity_registry->try_get<PointLightComponent>(entity)) {
+                ImGui::Text("Point Light Component");
+
+                if (ImGui::ColorEdit3("Light color", glm::value_ptr(lightComponent->color),
+                ImGuiColorEditFlags_NoInputs)){}
+                ImGui::DragFloat3("Light Pos X", &lightComponent->position.x, 0.1f);
+                ImGui::Separator();
             }
         }
     }
