@@ -6,16 +6,19 @@
 
 struct AABBColliderComponent { //add dynamic/static flag
     bool isTrigger = false;
+    bool isStatic = false;
     bool setFromMesh = true;
     eeng::AABB aabb;
     std::function<void()> OnCollision = [] () { return;};
 };
-struct SphereColliderComponent {
+struct SphereColliderComponent {    
     bool isTrigger = false;
+    bool isStatic = false;
     bool setFromMesh = true;
     glm::vec3 pos;
     float radius;
     std::function<void()> OnCollision = [] () { return;};
+    glm::vec4 GetSphere() {return glm::vec4(pos, radius);}
 };
 
 struct SimpleCollision {

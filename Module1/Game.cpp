@@ -122,8 +122,8 @@ bool Game::init()
     m_entity_registry->emplace<TransformComponent>(m_npcEntity,
         glm::vec3{5.0f, 0.0f, -5.0f}, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(m_npcMesh));
-    m_entity_registry->emplace<SphereColliderComponent>(m_npcEntity);
-    m_entity_registry->emplace<AABBColliderComponent>(m_npcEntity);
+    m_entity_registry->emplace<SphereColliderComponent>(m_npcEntity, false, true);
+    m_entity_registry->emplace<AABBColliderComponent>(m_npcEntity, false, true);
     m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
         0, 1, 1.0f, 1.0f, false, 0.0f, std::string("mixamorig:Spine"));
     m_entity_registry->emplace<GUI_ProgressBarComponent>(m_npcEntity);
