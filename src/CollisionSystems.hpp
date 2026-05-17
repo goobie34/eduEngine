@@ -44,7 +44,7 @@ public:
 };
 class CollisionSystem {
 public:
-    static void Update(entt::registry& registry) {
+    static void Update(float time, entt::registry& registry) {
         std::vector<std::pair<SphereColliderComponent, entt::entity>> entitySphereColliders;
         auto view = registry.view<SphereColliderComponent, AABBColliderComponent, TransformComponent>();
 
@@ -53,37 +53,67 @@ public:
             auto collider = view.get<SphereColliderComponent>(entity);
             entitySphereColliders.push_back(std::pair<SphereColliderComponent, entt::entity>(collider, entity));
         }
-        float maxDistanceBetweenLeaves = 10.0f;
+
+        // eeng::Log(std::string("entitySphereColliders: " + std::to_string(entitySphereColliders.size())).c_str());
+
+        float maxDistanceBetweenLeaves = 500.0f;
         auto treeRoot = BVHSystem::BuildBVHBottomUp(entitySphereColliders, maxDistanceBetweenLeaves);
         
         for(auto entityA : view) {
-            auto sphereLooseA = view.get<SphereColliderComponent>(entityA);
-            auto aabbTightA = view.get<AABBColliderComponent>(entityA);
+            auto& sphereLooseA = view.get<SphereColliderComponent>(entityA);
+            auto& aabbTightA = view.get<AABBColliderComponent>(entityA);
             std::vector<entt::entity> possibleCollisions = BVHSystem::FindPossibleCollisions(treeRoot, sphereLooseA.GetSphere());
+            
+            // eeng::Log(std::string("possible collisions: " + std::to_string(possibleCollisions.size())).c_str());
+
             for(auto entityB : possibleCollisions) {
                 if (entityA == entityB) continue;
                 if (entityB == entt::null) continue;
                 
-                //narrow phase: step 1 (loose)
-                auto sphereLooseB = view.get<SphereColliderComponent>(entityB);
-                if(TestSphereSphere(sphereLooseA, sphereLooseB)) {
-                    eeng::Log("LOOSE COLLISION");
+                auto sourceA = registry.try_get<SourceComponent>(entityA);
+                auto sourceB = registry.try_get<SourceComponent>(entityB);
                 
-                    //narrow phase: step 2 (tight)
-                    auto aabbTightB = view.get<AABBColliderComponent>(entityB);
+                //--- NARROW PHASE: step 1 (loose)
+                if(!view.contains(entityB)) continue;
+                auto& sphereLooseB = view.get<SphereColliderComponent>(entityB);
+
+                if(TestSphereSphere(sphereLooseA, sphereLooseB)) {
+                    //LOOSE COLLISION
+                    if(sourceA && sourceB) {
+                        sourceA->AddEvent(Event(0, time, "LOOSE COLLISION A", 0, 0.0f, entityB));
+                        sourceB->AddEvent(Event(0, time, "LOOSE COLLISION B", 0, 0.0f, entityA));
+                    }
+                
+                    //NARROW PHASE: step 2 (tight)
+                    auto& aabbTightB = view.get<AABBColliderComponent>(entityB);
                     if (TestAABBAABB(aabbTightA, aabbTightB)) {
-                        eeng::Log("TIGHT COLLISION");
-                        auto& tfmA = view.get<TransformComponent>(entityA);
-                        SeparateAABBs_XZ(aabbTightA, aabbTightB, tfmA);
+                        if(aabbTightA.isTrigger && !aabbTightB.isTrigger) {
+                            //TRIGGER A
+                            // eeng::Log("trigg a");
+
+                            if(sourceA && sourceB) { sourceA->AddEvent(Event(2, time, "Trigger A", 0, 0.0f, entityA)); }
+                            aabbTightA.OnTrigger(entityB);
+                        } else if(!aabbTightA.isTrigger && aabbTightB.isTrigger) {
+                            //TRIGGER B
+                            // eeng::Log("trigg b");w
+
+                            // if(sourceA && sourceB) { sourceB->AddEvent(Event(2, time, "Trigger B", 0, 0.0f, entityB)); }
+                            // aabbTightB.OnTrigger(entityA);                        
+                        } else if(!aabbTightA.isTrigger && !aabbTightB.isTrigger) {
+                            auto& tfmA = view.get<TransformComponent>(entityA);
+                            SeparateAABBs_XZ(aabbTightA, aabbTightB, tfmA);
+                            //COLLIDE A and B
+                            if(sourceA && sourceB) {
+                                sourceA->AddEvent(Event(1, time, "TIGHT COLLISION A", 0, 0.0f, entityA));
+                                sourceB->AddEvent(Event(1, time, "TIGHT COLLISION B", 0, 0.0f, entityB));
+                            }        
+                        } else {
+                            //TWO TRIGGERS, NOTHING HAPPENS
+                        }                        
                     }
                 }
             }
         }
-
-        // --- NARROW PHASE ---
-        // - loose
-        // - tight
-
     }
     static void CheckCollisions(entt::registry& registry) {
         // CheckSphereCollisions(registry);

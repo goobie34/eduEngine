@@ -99,6 +99,8 @@ public:
             auto& velocity = view.get<LinearVelocityComponent>(entity).velocity;
             auto& animationComponent = view.get<AnimationComponent>(entity);
             auto& animationController = view.get<PlayerAnimationControllerComponent>(entity);
+
+            if(!animationController.active) continue;
             float velocityMag = glm::length(velocity);
             if(velocityMag <= animationController.thresholdWalk) {
                 animationComponent.animIndexA = animationController.animIndexIdle;
@@ -194,17 +196,21 @@ public:
 
 static class PlayerInteractSystem {
 public:
-    static void Update(float time, InputManagerPtr input, entt::registry& registry) {
+    static void Update(float time, float dt, InputManagerPtr input, entt::registry& registry) {
         auto view = registry.view<PlayerInteractComponent>();
         for(auto entity : view) {
             auto& interactComponent = view.get<PlayerInteractComponent>(entity);
+            
+            interactComponent.timer -= dt;
+            if(interactComponent.timer <= 0) continue;
+            
             if (interactComponent.inputMap.isPressed("interact", input)) {
                 if (!interactComponent.wasInteracting)
                 {
                     if (auto source = registry.try_get<SourceComponent>(entity))
                     {
                         source->AddEvent(Event{EventType::PLAYER_INTERACT, time, "Player has interacted!", 1, 0.0f, entity});
-                    }       
+                    }     
                 }
                 interactComponent.wasInteracting = true;
             } else {
@@ -227,7 +233,7 @@ public:
             const auto transform = registry.get<TransformComponent>(entity);
             auto progressBar = registry.get<GUI_ProgressBarComponent>(entity);
 
-            auto world_pos = transform.position;
+            auto world_pos = transform.position + progressBar.offset;
             glm::ivec2 window_coords;
 
             if (glm_aux::window_coords_from_world_pos(world_pos, VP_P_V, window_coords))
@@ -305,3 +311,84 @@ public:
         }
     }
 };
+
+static class StarSystem {
+public:
+    static void Update(float time, float dt, entt::registry& registry) {
+        auto view = registry.view<StarComponent, TransformComponent>();
+        for(auto entity : view) {
+            auto& star = registry.get<StarComponent>(entity);
+            auto& transform = registry.get<TransformComponent>(entity);
+            
+            if(star.collected) continue;
+
+            transform.position.y = star.baseHeight + std::sin(time * star.vertical_movement_speed) * star.vertical_movement;
+            transform.yaw += star.rotation_speed * dt;
+        }
+    }
+};
+
+static class GUI_InteractPromptSystem {
+public:
+    static void Update(float windowHeight, entt::registry& registry, float dt) {
+        auto view = registry.view<TransformComponent, GUI_InteractPrompt>();
+
+        for(auto entity : view) {
+            const auto transform = registry.get<TransformComponent>(entity);
+            auto& interactPrompt = registry.get<GUI_InteractPrompt>(entity);
+
+            interactPrompt.timer -= dt;
+            if(interactPrompt.timer <= 0) continue;
+            ImGuiWindowFlags flags =
+                ImGuiWindowFlags_NoDecoration |
+                // ImGuiWindowFlags_NoInputs |
+                // ImGuiWindowFlags_NoBackground |
+                ImGuiWindowFlags_AlwaysAutoResize;
+
+            if (ImGui::Begin(("Tip:##" + std::to_string((uint32_t)entity)).c_str(), nullptr, flags))
+            {
+                ImGui::Text(interactPrompt.prompt.c_str());
+                ImGui::End();
+            }
+        }
+    }
+};
+
+static class QuestSystem {
+public:
+    static void Update(entt::registry& registry) {
+        auto view = registry.view<QuestComponent, PeteNPCComponent, AnimationComponent, SourceComponent>();
+        for(auto entity : view) {
+            auto& quest = view.get<QuestComponent>(entity);
+            auto& pete = view.get<PeteNPCComponent>(entity);
+            auto& animation = view.get<AnimationComponent>(entity);
+            auto& source = view.get<SourceComponent>(entity);
+            //queststage = 0;
+            if(pete.hasInteractedOnce) {
+                quest.stage = 1;
+            }
+            
+            if(pete.hasAllStars) {
+                quest.stage = 2;
+            } 
+
+            if(pete.shouldDance) {
+                quest.stage = 3;
+                animation.blendFactor = 1.0f;
+                source.AddEvent(Event(EventType::QUEST_OVER, 0.0f, "QUEST COMPLETED", 0, 0.0f, entity));
+            }
+            AddToQuestLog(registry, quest);
+        }
+    }
+    static void AddToQuestLog(entt::registry& registry, QuestComponent& questComponent) {
+        auto view = registry.view<GUI_QuestLogComponent>();
+        for(auto entity : view) {
+            auto& questLog = view.get<GUI_QuestLogComponent>(entity);
+            int currentLog = questLog.log.size() - 1;
+            if (currentLog < questComponent.stage) {
+                questLog.add(questComponent.quests[questComponent.stage]);
+            }
+        }
+    }
+};
+

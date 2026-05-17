@@ -39,7 +39,7 @@ bool Game::init()
     m_characterMesh->load("assets/Chad/Silly Dancing.fbx", true);    //4
     m_characterMesh->removeTranslationKeys("mixamorig:Hips");     //remove root motion
 
-    int numOfStars = 21;
+    int numOfStars = 6;
     for(int i = 0; i < numOfStars; i++) {
         m_itemMeshes.push_back(std::make_shared<RenderableMesh>());
         m_itemMeshes[i]->load("assets/Star/Star.fbx");
@@ -74,10 +74,8 @@ bool Game::init()
     playerInputMap.addKeybind("sprint",   std::vector<Key>{Key::LeftShift});
     playerInputMap.addKeybind("interact", std::vector<Key>{Key::E});
     
-    SourceComponent playerEventSource;
-    playerEventSource.AddObserver(m_guiEntity);
+    SourceComponent playerEventSource{};
     playerEventSource.AddObserver(m_npcEntity);
-    playerEventSource.AddObserver(m_playerEntity);
 
     //Assign components to entities
     //PLAYER
@@ -94,14 +92,29 @@ bool Game::init()
     m_entity_registry->emplace<PlayerAnimationControllerComponent>(m_playerEntity,
         1, 2, 3, 4.0f, 10.0f);
     m_entity_registry->emplace<PlayerInteractComponent>(m_playerEntity, playerInputMap);
-    m_entity_registry->emplace<GUI_InventoryComponent>(m_playerEntity, "ItemName", 5, 5);
+    m_entity_registry->emplace<GUI_InventoryComponent>(m_playerEntity, "Stars:");
     m_entity_registry->emplace<SourceComponent>(m_playerEntity, playerEventSource);
     m_entity_registry->emplace<ObserverComponent>(m_playerEntity,
-        [this] (Event event) {  
-            //causes player to "drop" item when INTERACT event is called
-            if (event.type == EventType::PLAYER_INTERACT) {
-                if (auto inventory = m_entity_registry->try_get<GUI_InventoryComponent>(m_playerEntity)) {
-                    inventory->drop();
+        [this] (Event event) {
+            switch(event.type) {
+                case EventType::TRIGGER: {
+                    if (m_entity_registry->try_get<StarComponent>(event.entity)) {
+                        if (auto inventory = m_entity_registry->try_get<GUI_InventoryComponent>(m_playerEntity)) {
+                            inventory->pickUp();
+                        }
+                    }
+                    if (m_entity_registry->try_get<GUI_InteractPrompt>(event.entity)) {
+                        if (auto interactComponent = m_entity_registry->try_get<PlayerInteractComponent>(m_playerEntity)) {
+                            interactComponent->StartTimer();
+                        }
+                    }
+                    break;
+                }
+                case EventType::QUEST_OVER: {
+                    if (auto animComp = m_entity_registry->try_get<AnimationComponent>(m_playerEntity)) {
+                        animComp->animIndexA = 4;
+                        animComp->blendFactor = 0.0f;
+                    }
                 }
             }
         });
@@ -127,35 +140,65 @@ bool Game::init()
     m_entity_registry->emplace<MeshComponent>(m_environmentEntity, std::weak_ptr(m_environmentMesh));
 
     //NPC
+    SourceComponent peteSource;
+    peteSource.AddObserver(m_playerEntity);
     m_entity_registry->emplace<TransformComponent>(m_npcEntity,
         glm::vec3{5.0f, 0.0f, -5.0f}, 0.0f, 0.0f, glm::vec3{0.03f, 0.03f, 0.03f});
     m_entity_registry->emplace<MeshComponent>(m_npcEntity, std::weak_ptr(m_npcMesh));
     m_entity_registry->emplace<SphereColliderComponent>(m_npcEntity, false, true);
+    m_entity_registry->emplace<PeteNPCComponent>(m_npcEntity);
+    m_entity_registry->emplace<QuestComponent>(m_npcEntity);
     m_entity_registry->emplace<AABBColliderComponent>(m_npcEntity, false, true);
     m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
-        1, 0, 1.0f, 0.0f, false, 0.0f, std::string("mixamorig:Spine"));
+        1, 2, 1.0f, 0.0f, false, 0.0f, std::string("mixamorig:Spine"));
     m_entity_registry->emplace<GUI_ProgressBarComponent>(m_npcEntity);
+    m_entity_registry->emplace<SourceComponent>(m_npcEntity, peteSource);
     m_entity_registry->emplace<ObserverComponent>(m_npcEntity,
         [this] (Event event) {
             //this lambda changes value of progressbar when INTERACT event is called, by the int value sent in the event payload
             if (event.type == EventType::PLAYER_INTERACT) {
-                if (auto progressBar = m_entity_registry->try_get<GUI_ProgressBarComponent>(m_npcEntity)) {
-                    progressBar->changeValue(event.data_int);
+                if(auto peteComponent = m_entity_registry->try_get<PeteNPCComponent>(m_npcEntity)) {
+                    peteComponent->hasInteractedOnce = true;
+
+                    if(peteComponent->hasAllStars) peteComponent->shouldDance = true;
+
+                    if(auto playerInventory = m_entity_registry->try_get<GUI_InventoryComponent>(event.entity)) {
+                        if (auto progressBar = m_entity_registry->try_get<GUI_ProgressBarComponent>(m_npcEntity)) {
+                            if(playerInventory->current < event.data_int) return;
+
+                            progressBar->changeValue(event.data_int);
+                            playerInventory->drop(event.data_int);
+
+                            if(progressBar->current >= progressBar->max) peteComponent->hasAllStars = true;
+                        }
+                    }
                 }
             }
         });
 
+    SourceComponent npcTriggerSource{};
+    npcTriggerSource.AddObserver(m_playerEntity);
     AABB npcTrigger;
     npcTrigger.min = glm::vec3{2.0f, 0.0f, -8.0f};
     npcTrigger.max = glm::vec3{8.0f, 1.0f, -2.0f};
+    glm::vec3 spherePos{npcTrigger.getBoundingSphere()};
+    float sphereRadius = npcTrigger.getBoundingSphere().w;
     m_entity_registry->emplace<TransformComponent>(m_npcProximityTriggerEntity,
         glm::vec3{5.0f, 0.0f, -5.0f}, 0.0f, 0.0f, glm::vec3{1.0f, 1.0f, 1.0f});
+        m_entity_registry->emplace<SourceComponent>(m_npcProximityTriggerEntity, npcTriggerSource);
+        m_entity_registry->emplace<SphereColliderComponent>(m_npcProximityTriggerEntity, true, true, false, spherePos, sphereRadius);
         m_entity_registry->emplace<AABBColliderComponent>(m_npcProximityTriggerEntity,
             true,   //trigger
             true,   //static     
             false,  // setFromMesh
-            npcTrigger
-            ); 
+            npcTrigger,
+            [this] (entt::entity e) {
+                if (!m_entity_registry->try_get<PlayerControllerComponent>(e)) return; //return if entity is not player 
+                if (auto prompt = m_entity_registry->try_get<GUI_InteractPrompt>(m_npcProximityTriggerEntity)) {
+                    prompt->Start();
+                }
+            }); 
+        m_entity_registry->emplace<GUI_InteractPrompt>(m_npcProximityTriggerEntity, "Press E to talk to Pete!");
 
     //POINT LIGHT
     m_entity_registry->emplace<PointLightComponent>(m_lightEntity,
@@ -163,28 +206,61 @@ bool Game::init()
         glm::vec3{1.0f, 1.0f, 1.0f});   //color
     
     //GUI
-    m_entity_registry->emplace<GUI_QuestLogComponent>(m_guiEntity, std::vector<std::string>{"Talk to Pete!"});
+    m_entity_registry->emplace<GUI_QuestLogComponent>(m_guiEntity);
     m_entity_registry->emplace<ObserverComponent>(m_guiEntity, 
         [this] (Event e) {
-            if (auto questLog = m_entity_registry->try_get<GUI_QuestLogComponent>(m_guiEntity)) {
-                    questLog->add(std::string(e.message + ": " + std::to_string(e.timeStamp)).c_str());
+            switch(e.type) {
+                case EventType::QUEST_UPDATE: {
+                    if (auto questLog = m_entity_registry->try_get<GUI_QuestLogComponent>(m_guiEntity)) {
+                        questLog->add(std::string(e.message + ": " + std::to_string(e.timeStamp)).c_str());
+                    }   
+                    break;
+                }
             }
-
+            
             eeng::Log(e.message.c_str());
         }); //lambda called when this entity is notified, prints every event message to GUI log
 
+    //--- COLLECTIBLE ITEMS ---
     for(int i = 0; i < m_itemMeshes.size(); i++) {
         entt::entity itemEntity = m_entity_registry->create();
         m_entity_registry->emplace<InfoComponent>(itemEntity, std::string("star " + std::to_string(i)));
         m_entity_registry->emplace<MeshComponent>(itemEntity, m_itemMeshes[i]);
         float i_float = static_cast<float>(i);
         m_entity_registry->emplace<TransformComponent>(itemEntity,
-            glm::vec3(i_float * 4.0f - 20.0f, 2.0f, (i % 3) * 4.0f - 35.0f),
+            glm::vec3(i_float * 4.0f - 20.0f, 1.5f, (i % 3) * 4.0f - 35.0f),
             0.0f, 0.0f,
             glm::vec3(2.0f, 2.0f, 2.0f)
         );
+        AABBColliderComponent aabbCollider{true, true};
+        aabbCollider.OnTrigger = [this, itemEntity](entt::entity entity) {
+            // if(!m_entity_registry->try_get<PlayerControllerComponent>(entity)) return; //make sure colliding entity is player
+            eeng::Log("HEYHYEHYEHYHEYEHEYEHEYEHY");
+            if(auto star = m_entity_registry->try_get<StarComponent>(itemEntity)) {
+                star->collected = true;
+            }
+            if(auto transform = m_entity_registry->try_get<TransformComponent>(itemEntity)) {
+                transform->position.y -= 5.0f;
+            }
+        };
+
         m_entity_registry->emplace<SphereColliderComponent>(itemEntity, true, true);
-        m_entity_registry->emplace<AABBColliderComponent>(itemEntity, true, true);
+        m_entity_registry->emplace<AABBColliderComponent>(itemEntity, aabbCollider);
+        m_entity_registry->emplace<SourceComponent>(itemEntity);
+        m_entity_registry->emplace<StarComponent>(itemEntity, 1.5f);
+    }
+
+    //Make gui listen to all entities
+    auto source_view = m_entity_registry->view<SourceComponent>();
+    for(auto entity : source_view) {
+        auto& source = source_view.get<SourceComponent>(entity);
+        source.AddObserver(m_guiEntity);
+    }
+
+    auto star_view = m_entity_registry->view<StarComponent, SourceComponent>();
+    for(auto entity : star_view) {
+        auto& source = star_view.get<SourceComponent>(entity);
+        source.AddObserver(m_playerEntity);
     }
 
     return true;
@@ -203,14 +279,17 @@ void Game::update(
     AnimationSystem::Update(deltaTime, *m_entity_registry);
     ColliderSystem::UpdateAABBs(*m_entity_registry);
     ColliderSystem::UpdateSpheres(*m_entity_registry);
-    CollisionSystem::Update(*m_entity_registry);
+    CollisionSystem::Update(time, *m_entity_registry);
 
     //game
     PlayerControllerSystem::Update(deltaTime, input, *m_entity_registry);
-    PlayerInteractSystem::Update(time, input, *m_entity_registry);
+    PlayerInteractSystem::Update(time, deltaTime, input, *m_entity_registry);
     PlayerAnimationSystem::Update(*m_entity_registry);
     ThirdPersonCameraControllerSystem::Update(input, *m_entity_registry);
     NPCControllerSystem::Update(deltaTime, *m_entity_registry);
+    StarSystem::Update(time, deltaTime, *m_entity_registry);
+    GUI_InteractPromptSystem::Update(time, *m_entity_registry, deltaTime);
+    QuestSystem::Update(*m_entity_registry);
 }
 
 void Game::render(

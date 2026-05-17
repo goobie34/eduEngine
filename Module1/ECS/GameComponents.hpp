@@ -9,10 +9,13 @@
 using namespace eeng;
 
 enum EventType : uint8_t {
+    //CORE EVENTS
+    LOOSE_COLLISION,
+    TIGHT_COLLISION,
+    TRIGGER,
+    //GAME SPECIFIC
     PLAYER_INTERACT,
     QUEST_UPDATE,
-    BP_COLLISION,
-    NP_COLLISION,
     ITEM_PICKUP,
     ITEM_DROPOFF,
     QUEST_OVER
@@ -70,18 +73,22 @@ struct PlayerControllerComponent{
 struct PlayerAnimationControllerComponent{
     int animIndexIdle, animIndexWalk, animIndexRun;
     float thresholdWalk, thresholdRun;
+    bool active = true;
 };
 
 struct PlayerInteractComponent {
     InputMap inputMap;
     bool wasInteracting = false;
+    float timer = 0; //when this is more than 0, interacting is possible
+    float interactWindow = 1.0f;
+    void StartTimer() {timer = interactWindow;}
 };
 
 struct GUI_ProgressBarComponent {
-    float max = 5.0f;
+    float max = 6.0f;
     float current = 0.0f;
 
-    glm::vec3 offset = glm_aux::vec3_010 * 1.0f; //does nothing atm
+    glm::vec3 offset = glm_aux::vec3_010 * 6.0f; //does nothing atm
     void changeValue(float change) {
         current += change;
         if (current > max) current = max;
@@ -95,15 +102,15 @@ struct GUI_ProgressBarComponent {
 };
 struct GUI_InventoryComponent {
     std::string itemName = "";
-    int capacity = 5;
-    int current = 5;
+    int capacity = 99;
+    int current = 0;
 
-    void pickUp() {
-        current++;
+    void pickUp(int val = 1) {
+        current += val;
         if (current > capacity) current = capacity;
     }
-    void drop() {
-        current--;
+    void drop(int val = 1) {
+        current -= val;
         if (current < 0) current = 0;
     }
 };
@@ -115,4 +122,30 @@ struct GUI_QuestLogComponent {
             log.push_back(logUpdate);
         }
     }
+};
+
+struct StarComponent {
+    float baseHeight;
+    float rotation_speed = 2.0f;
+    float vertical_movement = 0.5;
+    float vertical_movement_speed = 2.0f;
+    bool collected = false;
+};
+
+struct GUI_InteractPrompt {
+    std::string prompt = "";
+    float timer = 0; //when this is more than 0, prompt is visible
+    float duration = 1.0f;
+    void Start() {timer = duration;}
+};
+
+struct QuestComponent {
+    int stage = 0;
+    std::vector<std::string> quests = {"Talk to Pete", "Collect 6 stars and give them to Pete!", "Try talking to him one more time...", "~ Party ~"};
+};
+
+struct PeteNPCComponent {
+    bool hasInteractedOnce = false;
+    bool hasAllStars = false;
+    bool shouldDance = false;
 };

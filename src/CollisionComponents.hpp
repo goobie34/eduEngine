@@ -17,7 +17,7 @@ struct AABBColliderComponent {
     bool isStatic = false;
     bool setFromMesh = true;
     eeng::AABB aabb;
-    std::function<void(SimpleCollision)> OnCollision = [](SimpleCollision s) {return;};
+    std::function<void(entt::entity)> OnTrigger = [](entt::entity e) {return;};
 };
 struct SphereColliderComponent {    
     bool isTrigger = false;
@@ -25,6 +25,6 @@ struct SphereColliderComponent {
     bool setFromMesh = true;
     glm::vec3 pos;
     float radius;
-    std::function<void(SimpleCollision)> OnCollision = [](SimpleCollision s) {return;};
+    std::function<void(entt::entity)> OnTrigger = [](entt::entity e) {return;};
     glm::vec4 GetSphere() {return glm::vec4(pos, radius);}
 };

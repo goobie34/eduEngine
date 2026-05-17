@@ -4,7 +4,8 @@
 #pragma once
 
 struct Event {
-    Event(std::uint8_t type, float timeStamp, std::string message = "", int data_int = 0, float data_float = 0.0f, entt::entity entity = entt::null)
+    Event(std::uint8_t type, float timeStamp, std::string message = "", int data_int = 0, float data_float = 0.0f,
+        entt::entity entity = entt::null)
         : type(type), timeStamp(timeStamp), message(message), entity(entity), data_int(data_int), data_float(data_float) {}
     
     std::uint8_t type; //can be mapped onto enum
@@ -13,7 +14,6 @@ struct Event {
     entt::entity entity;
     int data_int;
     float data_float;
-    SimpleCollision collision{};
 };
 
 struct ObserverComponent {
@@ -21,7 +21,7 @@ struct ObserverComponent {
 };
 
 struct SourceComponent {
-    std::uint8_t capacity;
+    std::uint8_t capacity = 255;
     std::vector<Event> events;
     std::vector<entt::entity> observers;
     std::vector<entt::entity> observersToAdd;

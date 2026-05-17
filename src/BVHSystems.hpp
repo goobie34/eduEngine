@@ -25,7 +25,7 @@ public:
         FindMinMaxPoints(leftSphere, rightSphere, minPoint, maxPoint);
 
         glm::vec3 midPoint = minPoint + (maxPoint - minPoint) * 0.5f;
-        float radius = (maxPoint - minPoint).length() * 0.5f;
+        float radius = glm::length(maxPoint - minPoint) * 0.5f;
 
         return new SphereNode{glm::vec4(midPoint, radius), entt::null, nullptr, nullptr};
     }
@@ -70,20 +70,20 @@ public:
 
         while(openList.size() != 1) {
             auto pairs = FindPairs(openList, maxDistanceBetweenLeaves);
-                openList.clear();
-                for(auto pair : pairs) {
-                    if(pair.second) {
-                        auto node = BuildNodeFromSpheres(pair.first->thisSphere, pair.second->thisSphere);
-                        node->leftChild = pair.first;
-                        node->rightChild = pair.second;
-                        openList.push_back(node);
-                    }
-                    else {
-                        auto node = BuildNodeFromSingleSphere(pair.first->thisSphere, entt::null);
-                        node->leftChild = pair.first;
-                        openList.push_back(node);
-                    }
+            openList.clear();
+            for(auto pair : pairs) {
+                if(pair.second) {
+                    auto node = BuildNodeFromSpheres(pair.first->thisSphere, pair.second->thisSphere);
+                    node->leftChild = pair.first;
+                    node->rightChild = pair.second;
+                    openList.push_back(node);
                 }
+                else {
+                    // auto node = BuildNodeFromSingleSphere(pair.first->thisSphere, entt::null);
+                    // node->leftChild = pair.first;
+                    openList.push_back(pair.first);
+                }
+            }
             maxDistanceBetweenLeaves = std::numeric_limits<float>::max();
         }
         return openList[0];
@@ -114,7 +114,7 @@ public:
 
     //helpers
     static float DistanceBetweenSpheres(glm::vec4 leftSphere, glm::vec4 rightSphere) {
-        float centerDistance = (glm::vec3(rightSphere) - glm::vec3(leftSphere)).length();
+        float centerDistance = glm::length(glm::vec3(rightSphere) - glm::vec3(leftSphere));
         float surfaceDistance = centerDistance - (leftSphere.w + rightSphere.w);
         return std::max(0.0f, surfaceDistance);
     }
