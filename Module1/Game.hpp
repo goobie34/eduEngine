@@ -60,6 +60,7 @@ private:
 
     // Game meshes
     std::shared_ptr<eeng::RenderableMesh> m_environmentMesh, m_npcMesh, m_characterMesh, m_itemMesh;
+    std::vector<std::shared_ptr<eeng::RenderableMesh>> m_itemMeshes;
 
     //AABBs
     AABB m_playerAABB, m_npcAABB, m_environmentAABB;

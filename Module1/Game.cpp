@@ -29,15 +29,21 @@ bool Game::init()
     // horseMesh->load("assets/Animals/Horse.fbx", false);
     m_npcMesh->load("assets/Pete/Pete.fbx", false);
     m_npcMesh->load("assets/Pete/Happy Idle.fbx", true);
+    m_npcMesh->load("assets/Pete/Silly Dancing.fbx", true);
 
     m_characterMesh = std::make_shared<eeng::RenderableMesh>();//anim index
     m_characterMesh->load("assets/Chad/Chad.fbx");             //0   
     m_characterMesh->load("assets/Chad/Idle.fbx",    true);    //1
     m_characterMesh->load("assets/Chad/Walking.fbx", true);    //2
     m_characterMesh->load("assets/Chad/Running.fbx", true);    //3
-    m_characterMesh->load("assets/Chad/Dancing.fbx", true);    //4
+    m_characterMesh->load("assets/Chad/Silly Dancing.fbx", true);    //4
     m_characterMesh->removeTranslationKeys("mixamorig:Hips");     //remove root motion
 
+    int numOfStars = 21;
+    for(int i = 0; i < numOfStars; i++) {
+        m_itemMeshes.push_back(std::make_shared<RenderableMesh>());
+        m_itemMeshes[i]->load("assets/Star/Star.fbx");
+    }
     //Set up EnTT
     m_entity_registry = std::make_shared<entt::registry>();
 
@@ -127,7 +133,7 @@ bool Game::init()
     m_entity_registry->emplace<SphereColliderComponent>(m_npcEntity, false, true);
     m_entity_registry->emplace<AABBColliderComponent>(m_npcEntity, false, true);
     m_entity_registry->emplace<AnimationComponent>(m_npcEntity,
-        0, 1, 1.0f, 1.0f, false, 0.0f, std::string("mixamorig:Spine"));
+        1, 0, 1.0f, 0.0f, false, 0.0f, std::string("mixamorig:Spine"));
     m_entity_registry->emplace<GUI_ProgressBarComponent>(m_npcEntity);
     m_entity_registry->emplace<ObserverComponent>(m_npcEntity,
         [this] (Event event) {
@@ -151,8 +157,6 @@ bool Game::init()
             npcTrigger
             ); 
 
-
-
     //POINT LIGHT
     m_entity_registry->emplace<PointLightComponent>(m_lightEntity,
         glm::vec3{0.0f, 5.0f, 0.0f},    //pos
@@ -169,6 +173,19 @@ bool Game::init()
             eeng::Log(e.message.c_str());
         }); //lambda called when this entity is notified, prints every event message to GUI log
 
+    for(int i = 0; i < m_itemMeshes.size(); i++) {
+        entt::entity itemEntity = m_entity_registry->create();
+        m_entity_registry->emplace<InfoComponent>(itemEntity, std::string("star " + std::to_string(i)));
+        m_entity_registry->emplace<MeshComponent>(itemEntity, m_itemMeshes[i]);
+        float i_float = static_cast<float>(i);
+        m_entity_registry->emplace<TransformComponent>(itemEntity,
+            glm::vec3(i_float * 4.0f - 20.0f, 2.0f, (i % 3) * 4.0f - 35.0f),
+            0.0f, 0.0f,
+            glm::vec3(2.0f, 2.0f, 2.0f)
+        );
+        m_entity_registry->emplace<SphereColliderComponent>(itemEntity, true, true);
+        m_entity_registry->emplace<AABBColliderComponent>(itemEntity, true, true);
+    }
 
     return true;
 }
